@@ -1,0 +1,226 @@
+{
+  "name": "OpenAI Admin - 删除 API Key (openai-delete-key.json)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "developer-platform/openai/delete-key",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook触发",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "openai-delete-key"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\n\nif (!body.admin_key) {\n  return [{ json: { success: false, error: '缺少 Admin Key' } }];\n}\nif (!body.project_id) {\n  return [{ json: { success: false, error: '缺少 Project ID' } }];\n}\nif (!body.key_id) {\n  return [{ json: { success: false, error: '缺少要删除的 Key ID (platform_key_id)' } }];\n}\n\nreturn [{ json: { \n  admin_key: body.admin_key,\n  project_id: body.project_id,\n  key_id: body.key_id,\n  db_key_id: body.db_key_id || null,\n  key_name: body.key_name || ''\n} }];"
+      },
+      "id": "validate-input",
+      "name": "验证输入",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-key", "leftValue": "={{ $json.admin_key }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-params",
+      "name": "检查参数",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://api.openai.com/v1/organization/projects/' + $json.project_id + '/api_keys/' + $json.key_id }}",
+        "sendHeaders": true,
+        "headerParameters": { 
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $json.admin_key }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ] 
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "call-openai-delete",
+      "name": "调用OpenAI删除",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst inputData = $('验证输入').first().json;\n\n// 检查 API 错误\nif (apiResult.error) {\n  // 如果是 404，说明 Key 已经不存在，继续删除数据库记录\n  if (apiResult.error.code === 'not_found' || apiResult.error.type === 'invalid_request_error') {\n    return [{ json: { \n      success: true,\n      openai_deleted: false,\n      already_deleted: true,\n      key_id: inputData.key_id,\n      db_key_id: inputData.db_key_id,\n      key_name: inputData.key_name\n    } }];\n  }\n  \n  return [{ json: { \n    success: false, \n    error: apiResult.error.message || 'OpenAI API 调用失败',\n    code: apiResult.error.code\n  } }];\n}\n\n// 成功删除\nreturn [{ json: { \n  success: true, \n  openai_deleted: true,\n  key_id: inputData.key_id,\n  db_key_id: inputData.db_key_id,\n  key_name: inputData.key_name\n} }];"
+      },
+      "id": "check-result",
+      "name": "检查结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.success }}", "value2": true }]
+        }
+      },
+      "id": "if-success",
+      "name": "是否成功",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.db_key_id ? true : false }}", "value2": true }]
+        }
+      },
+      "id": "check-db-id",
+      "name": "是否有数据库ID",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 100]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://supabase-045.mindoffice.cn/rest/v1/llm_api_key_owners?api_key_id=eq.' + $json.db_key_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "delete-owners",
+      "name": "删除责任人关联",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 0]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://supabase-045.mindoffice.cn/rest/v1/llm_api_key_usage?api_key_id=eq.' + $('检查结果').first().json.db_key_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "delete-usage",
+      "name": "删除用量记录",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 0]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://supabase-045.mindoffice.cn/rest/v1/llm_api_keys?id=eq.' + $('检查结果').first().json.db_key_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "delete-key",
+      "name": "删除Key记录",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $('检查结果').first().json;\n\nreturn [{ json: { \n  success: true, \n  message: `API Key \"${inputData.key_name || inputData.key_id}\" 已完全删除`,\n  key_id: inputData.key_id,\n  db_deleted: true,\n  openai_deleted: inputData.openai_deleted\n} }];"
+      },
+      "id": "success-with-db",
+      "name": "成功响应(含数据库)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\n\nreturn [{ json: { \n  success: true, \n  message: `API Key \"${inputData.key_name || inputData.key_id}\" 已从 OpenAI 删除`,\n  key_id: inputData.key_id,\n  db_deleted: false,\n  openai_deleted: inputData.openai_deleted\n} }];"
+      },
+      "id": "success-no-db",
+      "name": "成功响应(无数据库ID)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nreturn [{ json: { \n  success: false, \n  error: data.error || '删除失败',\n  code: data.code\n} }];"
+      },
+      "id": "api-error",
+      "name": "API错误响应",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nreturn [{ json: { \n  success: false, \n  error: data.error || '参数验证失败'\n} }];"
+      },
+      "id": "error-response",
+      "name": "验证错误响应",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Webhook触发": { "main": [[{ "node": "验证输入", "type": "main", "index": 0 }]] },
+    "验证输入": { "main": [[{ "node": "检查参数", "type": "main", "index": 0 }]] },
+    "检查参数": { 
+      "main": [
+        [{ "node": "调用OpenAI删除", "type": "main", "index": 0 }],
+        [{ "node": "验证错误响应", "type": "main", "index": 0 }]
+      ] 
+    },
+    "调用OpenAI删除": { "main": [[{ "node": "检查结果", "type": "main", "index": 0 }]] },
+    "检查结果": { "main": [[{ "node": "是否成功", "type": "main", "index": 0 }]] },
+    "是否成功": {
+      "main": [
+        [{ "node": "是否有数据库ID", "type": "main", "index": 0 }],
+        [{ "node": "API错误响应", "type": "main", "index": 0 }]
+      ]
+    },
+    "是否有数据库ID": {
+      "main": [
+        [{ "node": "删除责任人关联", "type": "main", "index": 0 }],
+        [{ "node": "成功响应(无数据库ID)", "type": "main", "index": 0 }]
+      ]
+    },
+    "删除责任人关联": { "main": [[{ "node": "删除用量记录", "type": "main", "index": 0 }]] },
+    "删除用量记录": { "main": [[{ "node": "删除Key记录", "type": "main", "index": 0 }]] },
+    "删除Key记录": { "main": [[{ "node": "成功响应(含数据库)", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

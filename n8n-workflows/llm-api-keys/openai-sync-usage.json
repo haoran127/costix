@@ -1,0 +1,238 @@
+{
+  "name": "OpenAI Admin - 同步用量数据 (openai-sync-usage.json)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "developer-platform/openai/sync-usage",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook触发",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "openai-sync-usage"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\n\nif (!body.admin_key) {\n  return [{ json: { success: false, error: '缺少 admin_key 参数' } }];\n}\n\nconst now = new Date();\nconst nowTimestamp = Math.floor(now.getTime() / 1000);\n// 只查询最近 7 天（避免分页问题），足够获取今日和近期用量\nconst weekAgoUTC = nowTimestamp - (7 * 24 * 60 * 60);\n// 同时保存月初时间用于记录\nconst monthStartUTC = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) / 1000);\n\nreturn [{\n  json: {\n    admin_key: body.admin_key,\n    start_time: weekAgoUTC,\n    end_time: nowTimestamp,\n    month_start: monthStartUTC\n  }\n}];"
+      },
+      "id": "prepare",
+      "name": "准备参数",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.openai.com/v1/organization/projects?limit=100",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.admin_key }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_projects",
+      "name": "获取所有项目",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const projectsData = $input.first().json;\nconst adminKey = $('准备参数').first().json.admin_key;\nconst projects = projectsData.data || [];\n\nreturn projects.map(p => ({\n  json: {\n    project_id: p.id,\n    project_name: p.name,\n    admin_key: adminKey\n  }\n}));"
+      },
+      "id": "prepare_projects",
+      "name": "准备项目列表",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.openai.com/v1/organization/projects/{{ $json.project_id }}/api_keys?limit=100",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.admin_key }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_project_keys",
+      "name": "获取项目Keys",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 汇总所有 OpenAI Keys\nconst allItems = $input.all();\nconst projectItems = $('准备项目列表').all();\nconst allOpenAIKeys = [];\n\nallItems.forEach((item, idx) => {\n  const projectInfo = projectItems[idx]?.json || {};\n  const keys = item.json.data || [];\n  keys.forEach(k => {\n    allOpenAIKeys.push({\n      openai_key_id: k.id,\n      name: k.name,\n      project_id: projectInfo.project_id || '',\n      project_name: projectInfo.project_name || ''\n    });\n  });\n});\n\nconst adminKey = $('准备参数').first().json.admin_key;\nconst startTime = $('准备参数').first().json.start_time;\nconst endTime = $('准备参数').first().json.end_time;\n\nreturn [{\n  json: {\n    openai_keys: allOpenAIKeys,\n    total_count: allOpenAIKeys.length,\n    admin_key: adminKey,\n    start_time: startTime,\n    end_time: endTime\n  }\n}];"
+      },
+      "id": "merge_openai_keys",
+      "name": "汇总OpenAI Keys",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://supabase-045.mindoffice.cn/rest/v1/llm_api_keys?platform=eq.openai&select=id,name,project_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_db_keys",
+      "name": "获取数据库Keys",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 汇总数据库返回的所有 Keys（n8n 会把数组拆分成多个 item）\nconst allItems = $input.all();\nconst dbKeys = allItems.map(item => item.json);\n\nconst openaiKeysData = $('汇总OpenAI Keys').first().json;\n\nreturn [{\n  json: {\n    db_keys: dbKeys,\n    db_keys_count: dbKeys.length,\n    openai_keys: openaiKeysData.openai_keys,\n    openai_keys_count: openaiKeysData.total_count,\n    admin_key: openaiKeysData.admin_key,\n    start_time: openaiKeysData.start_time,\n    end_time: openaiKeysData.end_time\n  }\n}];"
+      },
+      "id": "collect_db_keys",
+      "name": "汇总数据库Keys",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 分页获取所有用量数据\nconst prevData = $input.first().json;\nconst adminKey = prevData.admin_key;\nconst startTime = prevData.start_time;\nconst endTime = prevData.end_time;\n\nconst allBuckets = [];\nlet page = null;\nlet hasMore = true;\nlet pageCount = 0;\nconst maxPages = 20; // 防止无限循环\n\nwhile (hasMore && pageCount < maxPages) {\n  let url = `https://api.openai.com/v1/organization/usage/completions?start_time=${startTime}&end_time=${endTime}&bucket_width=1d&group_by[]=api_key_id&limit=31`;\n  if (page) {\n    url += `&page=${page}`;\n  }\n  \n  const response = await this.helpers.httpRequest({\n    method: 'GET',\n    url: url,\n    headers: {\n      'Authorization': `Bearer ${adminKey}`,\n      'Content-Type': 'application/json'\n    }\n  });\n  \n  const buckets = response.data || [];\n  allBuckets.push(...buckets);\n  \n  hasMore = response.has_more === true;\n  page = response.next_page || null;\n  pageCount++;\n}\n\nreturn [{\n  json: {\n    data: allBuckets,\n    total_buckets: allBuckets.length,\n    pages_fetched: pageCount,\n    // 传递前面的数据\n    db_keys: prevData.db_keys,\n    openai_keys: prevData.openai_keys\n  }\n}];"
+      },
+      "id": "get_usage",
+      "name": "获取用量数据(分页)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 处理用量数据并匹配\nconst usageData = $input.first().json;\n\nconst openaiKeys = usageData.openai_keys || [];\nconst dbKeys = usageData.db_keys || [];\nconst buckets = usageData.data || [];\nconst pagesFetched = usageData.pages_fetched || 1;\nconst now = new Date();\nconst nowISO = now.toISOString();\n\n// 计算今天的 UTC 日期范围（与 OpenAI 保持一致）\nconst todayUTCStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;\nconst todayUTCEnd = todayUTCStart + 86400;\n\n// 调试信息：记录每个 bucket 的时间（确保转为数字）\nconst bucketDebug = buckets.map(b => {\n  const start = Number(b.start_time);\n  const end = Number(b.end_time);\n  return {\n    start,\n    end,\n    startISO: new Date(start * 1000).toISOString(),\n    isToday: (start >= todayUTCStart && start < todayUTCEnd),\n    resultsCount: (b.results || []).length\n  };\n});\n\n// 按 api_key_id 汇总用量\nconst usageByKey = {};\nlet todayTokens = 0;\nlet monthTokens = 0;\n\nbuckets.forEach(bucket => {\n  const bucketStart = bucket.start_time;\n  // 判断这个 bucket 是否是今天\n  const isToday = (bucketStart >= todayUTCStart && bucketStart < todayUTCEnd);\n  \n  (bucket.results || []).forEach(result => {\n    const inputTokens = result.input_tokens || 0;\n    const outputTokens = result.output_tokens || 0;\n    const totalTokens = inputTokens + outputTokens;\n    const apiKeyId = result.api_key_id || 'unknown';\n    \n    if (!usageByKey[apiKeyId]) {\n      usageByKey[apiKeyId] = {\n        today_tokens: 0, today_input: 0, today_output: 0,\n        month_tokens: 0, month_input: 0, month_output: 0\n      };\n    }\n    \n    if (isToday) {\n      todayTokens += totalTokens;\n      usageByKey[apiKeyId].today_tokens += totalTokens;\n      usageByKey[apiKeyId].today_input += inputTokens;\n      usageByKey[apiKeyId].today_output += outputTokens;\n    }\n    \n    monthTokens += totalTokens;\n    usageByKey[apiKeyId].month_tokens += totalTokens;\n    usageByKey[apiKeyId].month_input += inputTokens;\n    usageByKey[apiKeyId].month_output += outputTokens;\n  });\n});\n\n// 建立映射: OpenAI Key ID -> Key Name\nconst openaiKeyIdToName = {};\nopenaiKeys.forEach(k => {\n  openaiKeyIdToName[k.openai_key_id] = k.name;\n});\n\n// 建立映射: Key Name -> DB Key\nconst dbKeyByName = {};\ndbKeys.forEach(k => {\n  dbKeyByName[k.name] = k;\n});\n\n// 匹配用量到数据库 Keys\nconst usageRecords = [];\nconst matchedKeys = [];\n\nObject.entries(usageByKey).forEach(([apiKeyId, usage]) => {\n  const keyName = openaiKeyIdToName[apiKeyId];\n  if (!keyName) return;\n  \n  const dbKey = dbKeyByName[keyName];\n  if (!dbKey) return;\n  \n  matchedKeys.push({\n    openai_key_id: apiKeyId,\n    name: keyName,\n    db_id: dbKey.id,\n    month_tokens: usage.month_tokens,\n    today_tokens: usage.today_tokens\n  });\n  \n  usageRecords.push({\n    api_key_id: dbKey.id,\n    token_usage_total: usage.month_tokens,\n    token_usage_monthly: usage.month_tokens,\n    token_usage_daily: usage.today_tokens,\n    prompt_tokens_total: usage.month_input,\n    completion_tokens_total: usage.month_output,\n    synced_at: nowISO,\n    period_start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().split('T')[0]\n  });\n});\n\nreturn [{\n  json: {\n    success: true,\n    summary: {\n      today_tokens: todayTokens,\n      month_tokens: monthTokens,\n      total_buckets: buckets.length,\n      pages_fetched: pagesFetched,\n      usage_keys_count: Object.keys(usageByKey).length,\n      today_utc_start: todayUTCStart,\n      today_utc_end: todayUTCEnd,\n      now_iso: nowISO,\n      bucket_debug: bucketDebug\n    },\n    records_to_insert: usageRecords,\n    matched_keys: matchedKeys,\n    matched_count: matchedKeys.length,\n    db_keys_count: dbKeys.length,\n    openai_keys_count: openaiKeys.length\n  }\n}];"
+      },
+      "id": "process_all",
+      "name": "处理匹配用量",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2180, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.records_to_insert.length }}", "operation": "larger", "value2": 0 }]
+        }
+      },
+      "id": "check_usage",
+      "name": "是否有用量",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://supabase-045.mindoffice.cn/rest/v1/llm_api_key_usage?on_conflict=api_key_id,period_start",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('处理匹配用量').first().json.records_to_insert }}",
+        "options": {}
+      },
+      "id": "save_usage",
+      "name": "保存用量",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2620, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('处理匹配用量').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    message: `同步完成！更新 ${data.matched_count} 个 Key 的用量`,\n    summary: data.summary,\n    matched_keys: data.matched_keys,\n    synced_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "response_success",
+      "name": "成功响应",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2840, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('处理匹配用量').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    message: '同步完成，暂无用量数据',\n    summary: data.summary,\n    db_keys_count: data.db_keys_count,\n    openai_keys_count: data.openai_keys_count,\n    synced_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "response_no_usage",
+      "name": "无用量响应",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2620, 400]
+    }
+  ],
+  "connections": {
+    "Webhook触发": {
+      "main": [[{ "node": "准备参数", "type": "main", "index": 0 }]]
+    },
+    "准备参数": {
+      "main": [[{ "node": "获取所有项目", "type": "main", "index": 0 }]]
+    },
+    "获取所有项目": {
+      "main": [[{ "node": "准备项目列表", "type": "main", "index": 0 }]]
+    },
+    "准备项目列表": {
+      "main": [[{ "node": "获取项目Keys", "type": "main", "index": 0 }]]
+    },
+    "获取项目Keys": {
+      "main": [[{ "node": "汇总OpenAI Keys", "type": "main", "index": 0 }]]
+    },
+    "汇总OpenAI Keys": {
+      "main": [[{ "node": "获取数据库Keys", "type": "main", "index": 0 }]]
+    },
+    "获取数据库Keys": {
+      "main": [[{ "node": "汇总数据库Keys", "type": "main", "index": 0 }]]
+    },
+    "汇总数据库Keys": {
+      "main": [[{ "node": "获取用量数据(分页)", "type": "main", "index": 0 }]]
+    },
+    "获取用量数据(分页)": {
+      "main": [[{ "node": "处理匹配用量", "type": "main", "index": 0 }]]
+    },
+    "处理匹配用量": {
+      "main": [[{ "node": "是否有用量", "type": "main", "index": 0 }]]
+    },
+    "是否有用量": {
+      "main": [
+        [{ "node": "保存用量", "type": "main", "index": 0 }],
+        [{ "node": "无用量响应", "type": "main", "index": 0 }]
+      ]
+    },
+    "保存用量": {
+      "main": [[{ "node": "成功响应", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

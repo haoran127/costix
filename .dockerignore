@@ -1,0 +1,38 @@
+# 依赖目录
+node_modules
+**/node_modules
+
+# 构建产物
+dist
+build
+
+# 开发文件
+.git
+.gitignore
+.vscode
+.idea
+*.md
+!README.md
+
+# 日志
+*.log
+logs
+
+# 测试文件
+tests
+__tests__
+*.test.ts
+*.spec.ts
+
+# 环境文件（已允许提交，构建时需要读取）
+# .env  # 需要被 Vite 读取，不排除
+# .env.*
+!.env.example
+
+# 其他
+.DS_Store
+*.swp
+*.swo
+coverage
+.nyc_output
+

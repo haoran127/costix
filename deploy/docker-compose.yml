@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # Costix 前端应用
+  # ========================================
+  costix:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        BUILD_MODE: prod
+    container_name: costix-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # SSL 证书目录（Let's Encrypt）
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Certbot 验证目录
+      - certbot-webroot:/var/www/certbot
+    environment:
+      - TZ=Asia/Shanghai
+    networks:
+      - costix-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ========================================
+  # Certbot - SSL 证书自动续期
+  # ========================================
+  certbot:
+    image: certbot/certbot
+    container_name: costix-certbot
+    restart: unless-stopped
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - costix-network
+
+networks:
+  costix-network:
+    driver: bridge
+
+volumes:
+  certbot-webroot:
+

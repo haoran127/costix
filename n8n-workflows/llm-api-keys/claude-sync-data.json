@@ -1,0 +1,485 @@
+{
+  "name": "Claude Admin - 同步数据 (Keys/Workspaces/用量/费用) (claude-sync-data.json)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "developer-platform/claude/sync-data",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook触发",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "claude-sync-data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst action = body.action;\n\nif (!action) {\n  return [{ json: { success: false, error: '缺少 action 参数' } }];\n}\n\nconst hasAdminKey = body.admin_key && body.admin_key.trim().startsWith('sk-ant-admin');\nconst hasPlatformAccountId = !!body.platform_account_id;\n\nif (!hasAdminKey && !hasPlatformAccountId) {\n  return [{ json: { success: false, error: '需要提供 admin_key 或 platform_account_id' } }];\n}\n\n// Anthropic API 使用 UTC 时间，格式 YYYY-MM-DD\nconst now = new Date();\nconst nowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));\n\n// 计算时间范围\nlet startingAt, endingAt;\nconst range = body.range || 'month'; // 支持 'today', 'month', 'custom'\n\nif (body.starting_at && body.ending_at) {\n  // 自定义时间范围\n  startingAt = body.starting_at;\n  endingAt = body.ending_at;\n} else if (range === 'today') {\n  // 当天: 今天 00:00 UTC 到 明天 00:00 UTC\n  startingAt = nowUTC.toISOString().split('T')[0];\n  const tomorrow = new Date(nowUTC.getTime() + 24 * 60 * 60 * 1000);\n  endingAt = tomorrow.toISOString().split('T')[0];\n} else {\n  // 当月: 本月1号到今天\n  const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));\n  const tomorrow = new Date(nowUTC.getTime() + 24 * 60 * 60 * 1000);\n  startingAt = firstDay.toISOString().split('T')[0];\n  endingAt = tomorrow.toISOString().split('T')[0];\n}\n\nreturn [{ json: { \n  action: action,\n  admin_key: hasAdminKey ? body.admin_key.trim() : null,\n  platform_account_id: body.platform_account_id || null,\n  need_fetch_admin_key: !hasAdminKey && hasPlatformAccountId,\n  workspace_id: body.workspace_id || null,\n  api_key_id: body.api_key_id || null,\n  status: body.status || 'active',\n  limit: body.limit || 100,\n  starting_at: startingAt,\n  ending_at: endingAt,\n  range: range,\n  bucket_width: body.bucket_width || '1d',\n  page_size: body.page_size || 1000,\n  save_to_db: body.save_to_db !== false\n} }];"
+      },
+      "id": "preprocess",
+      "name": "预处理参数",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.need_fetch_admin_key }}", "value2": true }]
+        }
+      },
+      "id": "check-need-fetch",
+      "name": "需要查询AdminKey",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://supabase-045.mindoffice.cn/rest/v1/llm_platform_accounts?id=eq.' + $json.platform_account_id + '&select=id,name,platform,admin_api_key_encrypted,status' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-admin-key",
+      "name": "查询平台账号",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('预处理参数').first().json;\nconst dbResult = $input.first().json;\nconst account = Array.isArray(dbResult) ? dbResult[0] : dbResult;\n\nif (!account || !account.admin_api_key_encrypted) {\n  return [{ json: { success: false, error: '未找到平台账号或没有配置 Admin Key' } }];\n}\nif (account.status !== 'active') {\n  return [{ json: { success: false, error: '平台账号状态异常' } }];\n}\n\nreturn [{ json: { ...prevData, admin_key: account.admin_api_key_encrypted, platform_account_id: account.id, need_fetch_admin_key: false } }];"
+      },
+      "id": "merge-admin-key",
+      "name": "合并AdminKey",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst adminKey = data.admin_key;\n\nif (!adminKey || !adminKey.startsWith('sk-ant-admin')) {\n  return [{ json: { success: false, error: 'Admin Key 格式不正确' } }];\n}\n\nreturn [{ json: { ...data, route: data.action } }];"
+      },
+      "id": "validate-input",
+      "name": "验证输入",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.route === 'list_keys' }}", "value2": true }]
+        }
+      },
+      "id": "route-list-keys",
+      "name": "是列出Keys",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.anthropic.com/v1/organizations/api_keys?limit=' + $json.limit + ($json.status ? '&status=' + $json.status : '') }}",
+        "sendHeaders": true,
+        "headerParameters": { 
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $json.admin_key }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ] 
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "list-keys",
+      "name": "列出API Keys",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst params = $('验证输入').first().json;\n\nif (apiResult.error) {\n  return [{ json: { success: false, action: 'list_keys', error: apiResult.error.message || 'API 调用失败' } }];\n}\n\nconst keys = apiResult.data || [];\nconst formattedKeys = keys.map(key => ({\n  id: key.id,\n  name: key.name,\n  status: key.status,\n  created_at: key.created_at,\n  workspace_id: key.workspace_id || null,\n  partial_key_hint: key.partial_key_hint || null,\n  platform: 'anthropic',\n  platform_account_id: params.platform_account_id\n}));\n\nreturn [{ json: { \n  success: true, \n  action: 'list_keys', \n  keys: formattedKeys, \n  total: formattedKeys.length, \n  has_more: apiResult.has_more || false,\n  save_to_db: params.save_to_db,\n  platform_account_id: params.platform_account_id\n} }];"
+      },
+      "id": "process-list-keys",
+      "name": "处理Keys列表",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.save_to_db && $json.keys && $json.keys.length > 0 }}", "value2": true }]
+        }
+      },
+      "id": "check-save-keys",
+      "name": "是否保存Keys",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2220, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevResult = $input.first().json;\nconst keys = prevResult.keys || [];\n\n// 为每个 Key 准备数据库记录\n// 使用 platform_key_id 作为唯一标识\n// api_key_encrypted 使用占位值 '[synced_from_api]' 表示这是从 API 同步的，没有完整 Key\nconst records = keys.map(k => ({\n  platform_key_id: k.id,\n  platform: 'anthropic',\n  name: k.name || 'Claude API Key',\n  api_key_encrypted: '[synced_from_api]',\n  api_key_prefix: k.partial_key_hint ? k.partial_key_hint.substring(0, 15) : 'sk-ant-',\n  api_key_suffix: k.partial_key_hint ? k.partial_key_hint.slice(-8) : null,\n  status: k.status === 'active' ? 'active' : 'inactive',\n  platform_account_id: prevResult.platform_account_id,\n  creation_method: 'api',\n  last_synced_at: new Date().toISOString(),\n  organization_id: k.workspace_id || null\n}));\n\nreturn [{ json: { ...prevResult, db_records: records } }];"
+      },
+      "id": "prepare-keys-data",
+      "name": "准备Keys数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://supabase-045.mindoffice.cn/rest/v1/llm_api_keys?on_conflict=platform,platform_key_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation,resolution=merge-duplicates" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.db_records }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "save-keys-to-db",
+      "name": "保存Keys到数据库",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevResult = $('准备Keys数据').first().json;\nconst dbResult = $input.first().json;\n\nlet savedCount = 0;\nlet errorMsg = null;\n\nif (Array.isArray(dbResult)) {\n  savedCount = dbResult.length;\n} else if (dbResult.error || dbResult.message) {\n  errorMsg = dbResult.message || dbResult.error;\n}\n\nreturn [{ json: { \n  success: !errorMsg,\n  action: 'list_keys',\n  keys: prevResult.keys,\n  total: prevResult.total,\n  has_more: prevResult.has_more,\n  db_saved: !errorMsg,\n  db_saved_count: savedCount,\n  error: errorMsg,\n  message: errorMsg ? `保存失败: ${errorMsg}` : `成功同步 ${savedCount} 个 Keys 到数据库`\n} }];"
+      },
+      "id": "keys-save-result",
+      "name": "Keys同步结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.route === 'list_workspaces' }}", "value2": true }]
+        }
+      },
+      "id": "route-list-workspaces",
+      "name": "是列出Workspaces",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.anthropic.com/v1/organizations/workspaces?limit=100&include_archived=false",
+        "sendHeaders": true,
+        "headerParameters": { 
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $json.admin_key }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ] 
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "list-workspaces",
+      "name": "列出Workspaces",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\n\nif (apiResult.error) {\n  return [{ json: { success: false, action: 'list_workspaces', error: apiResult.error.message || 'API 调用失败' } }];\n}\n\nconst workspaces = apiResult.data || [];\nconst formatted = workspaces.map(ws => ({ id: ws.id, name: ws.name, created_at: ws.created_at }));\n\nreturn [{ json: { success: true, action: 'list_workspaces', workspaces: formatted, total: formatted.length } }];"
+      },
+      "id": "process-list-workspaces",
+      "name": "处理Workspaces列表",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.route === 'sync_usage' }}", "value2": true }]
+        }
+      },
+      "id": "route-sync-usage",
+      "name": "是同步用量",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 600]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.anthropic.com/v1/organizations/usage_report/messages?starting_at=' + encodeURIComponent($json.starting_at) + '&ending_at=' + encodeURIComponent($json.ending_at) + '&bucket_width=' + $json.bucket_width + '&group_by[]=api_key_id' }}",
+        "sendHeaders": true,
+        "headerParameters": { 
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $json.admin_key }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ] 
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "sync-usage",
+      "name": "获取用量报告",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2220, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst params = $('验证输入').first().json;\n\nif (apiResult.error) {\n  return [{ json: { success: false, action: 'sync_usage', error: apiResult.error.message || 'API 调用失败', details: JSON.stringify(apiResult.error) } }];\n}\n\n// Anthropic Usage API 返回格式: data 是一个 buckets 数组，每个 bucket 有 starting_at, ending_at, results\nconst usageData = apiResult.data || [];\nlet totalInput = 0, totalOutput = 0, totalCacheRead = 0, totalCacheCreation = 0;\n\nconst byModel = {};\nconst byApiKey = {};\nconst flatRecords = [];\n\nusageData.forEach(bucket => {\n  const bucketStart = bucket.starting_at;\n  const results = bucket.results || [];\n  \n  results.forEach(item => {\n    // Claude API 返回 uncached_input_tokens 而不是 input_tokens\n    const input = item.uncached_input_tokens || item.input_tokens || 0;\n    const output = item.output_tokens || 0;\n    const cacheRead = item.cache_read_input_tokens || 0;\n    // cache_creation 是一个对象，需要累加\n    let cacheCreation = 0;\n    if (item.cache_creation) {\n      cacheCreation = (item.cache_creation.ephemeral_1h_input_tokens || 0) + (item.cache_creation.ephemeral_5m_input_tokens || 0);\n    }\n    \n    // 总 tokens = 输入 + 输出 + 缓存读取 + 缓存创建\n    const itemTotal = input + output + cacheRead + cacheCreation;\n    \n    totalInput += input;\n    totalOutput += output;\n    totalCacheRead += cacheRead;\n    totalCacheCreation += cacheCreation;\n    \n    // 按模型统计\n    if (item.model) {\n      if (!byModel[item.model]) byModel[item.model] = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, total: 0 };\n      byModel[item.model].input += input;\n      byModel[item.model].output += output;\n      byModel[item.model].cacheRead += cacheRead;\n      byModel[item.model].cacheCreation += cacheCreation;\n      byModel[item.model].total += itemTotal;\n    }\n    \n    // 按 API Key 统计 - 包含所有 token 类型\n    if (item.api_key_id) {\n      if (!byApiKey[item.api_key_id]) byApiKey[item.api_key_id] = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, total: 0 };\n      byApiKey[item.api_key_id].input += input;\n      byApiKey[item.api_key_id].output += output;\n      byApiKey[item.api_key_id].cacheRead += cacheRead;\n      byApiKey[item.api_key_id].cacheCreation += cacheCreation;\n      byApiKey[item.api_key_id].total += itemTotal;\n    }\n    \n    flatRecords.push({ ...item, bucket_start: bucketStart, input_tokens: input, output_tokens: output, cache_read: cacheRead, cache_creation: cacheCreation, total_tokens: itemTotal });\n  });\n});\n\nreturn [{ json: { \n  success: true, \n  action: 'sync_usage', \n  summary: { \n    total_input_tokens: totalInput, \n    total_output_tokens: totalOutput, \n    total_cache_read: totalCacheRead,\n    total_cache_creation: totalCacheCreation,\n    total_tokens: totalInput + totalOutput + totalCacheRead + totalCacheCreation,\n    starting_at: params.starting_at, \n    ending_at: params.ending_at \n  },\n  by_model: byModel,\n  by_api_key: byApiKey,\n  raw_data: usageData,\n  flat_records: flatRecords,\n  save_to_db: params.save_to_db,\n  platform_account_id: params.platform_account_id,\n  synced_at: new Date().toISOString() \n} }];"
+      },
+      "id": "process-sync-usage",
+      "name": "处理用量数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.save_to_db && Object.keys($json.by_api_key || {}).length > 0 }}", "value2": true }]
+        }
+      },
+      "id": "check-save-usage",
+      "name": "是否保存用量",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2660, 600]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://supabase-045.mindoffice.cn/rest/v1/llm_api_keys?platform=eq.anthropic&select=id,platform_key_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-claude-keys-mapping",
+      "name": "查询Keys映射",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2880, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const usageData = $('处理用量数据').first().json;\nconst keysMapping = $input.first().json;\nconst params = $('验证输入').first().json;\n\n// 创建 platform_key_id -> id 的映射\nconst keyIdMap = {};\nif (Array.isArray(keysMapping)) {\n  keysMapping.forEach(k => {\n    if (k.platform_key_id) keyIdMap[k.platform_key_id] = k.id;\n  });\n}\n\n// 按 api_key_id 汇总用量数据\nconst byApiKey = usageData.by_api_key || {};\nconst flatRecords = usageData.flat_records || [];\nconst now = new Date();\nconst todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));\nconst todayStr = todayUTC.toISOString().split('T')[0];\nconst monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`;\nconst isDaily = params.range === 'today';\n\n// 从 flat_records 中计算今日用量（按 api_key_id 分组）\nconst todayByApiKey = {};\nflatRecords.forEach(record => {\n  const bucketDate = record.bucket_start ? record.bucket_start.split('T')[0] : '';\n  if (bucketDate === todayStr && record.api_key_id) {\n    if (!todayByApiKey[record.api_key_id]) todayByApiKey[record.api_key_id] = 0;\n    todayByApiKey[record.api_key_id] += record.total_tokens || 0;\n  }\n});\n\nconst records = [];\nfor (const [platformKeyId, usage] of Object.entries(byApiKey)) {\n  const dbKeyId = keyIdMap[platformKeyId];\n  if (!dbKeyId) continue; // 跳过没有映射的 Key\n  \n  // 始终使用月初作为 period_start，这样月度和今日用量会更新同一条记录\n  const record = {\n    api_key_id: dbKeyId,\n    period_start: monthStart,\n    synced_at: now.toISOString(),\n    sync_status: 'success'\n  };\n  \n  if (isDaily) {\n    // 今日用量模式 - 只更新 token_usage_daily 字段\n    record.token_usage_daily = usage.total || 0;\n  } else {\n    // 月度用量模式 - 同时更新月度和今日统计字段\n    record.token_usage_monthly = usage.total || 0;\n    record.token_usage_total = usage.total || 0;\n    record.prompt_tokens_total = usage.input || 0;\n    record.completion_tokens_total = usage.output || 0;\n    // 同时设置今日用量（从 flat_records 中计算）\n    record.token_usage_daily = todayByApiKey[platformKeyId] || 0;\n  }\n  \n  records.push(record);\n}\n\nreturn [{ json: { ...usageData, usage_records: records, keys_mapped: Object.keys(keyIdMap).length, is_daily: isDaily, today_usage_keys: Object.keys(todayByApiKey).length } }];"
+      },
+      "id": "prepare-usage-records",
+      "name": "准备用量记录",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://supabase-045.mindoffice.cn/rest/v1/llm_api_key_usage?on_conflict=api_key_id,period_start",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjEwNjI0MDAsImV4cCI6MTkxODgyODgwMH0.HD7LnjoZVHUEcL6I2ZmYadE1rlalv5cjzTwgMthBbXg" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation,resolution=merge-duplicates" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.usage_records }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "save-usage-to-db",
+      "name": "保存用量到数据库",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3320, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevResult = $('准备用量记录').first().json;\nconst dbResult = $input.first().json;\n\nlet savedCount = 0;\nlet errorMsg = null;\nif (Array.isArray(dbResult)) {\n  savedCount = dbResult.length;\n} else if (dbResult.error || dbResult.message) {\n  errorMsg = dbResult.message || dbResult.error;\n}\n\nconst rangeDesc = prevResult.is_daily ? '今日' : '月度';\n\nreturn [{ json: { \n  ...prevResult, \n  db_saved: !errorMsg,\n  db_saved_count: savedCount,\n  error: errorMsg,\n  message: errorMsg ? `保存失败: ${errorMsg}` : `成功保存 ${savedCount} 条${rangeDesc}用量记录`\n} }];"
+      },
+      "id": "usage-save-result",
+      "name": "用量保存结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevResult = $('处理用量数据').first().json;\nreturn [{ json: { ...prevResult, db_saved: false, db_saved_count: 0, message: '无用量数据需要保存' } }];"
+      },
+      "id": "usage-no-save",
+      "name": "用量无需保存",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.route === 'sync_cost' }}", "value2": true }]
+        }
+      },
+      "id": "route-sync-cost",
+      "name": "是同步费用",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2220, 800]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.anthropic.com/v1/organizations/cost_report?starting_at=' + encodeURIComponent($json.starting_at) + '&ending_at=' + encodeURIComponent($json.ending_at) + '&bucket_width=' + $json.bucket_width }}",
+        "sendHeaders": true,
+        "headerParameters": { 
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $json.admin_key }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ] 
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "sync-cost",
+      "name": "获取费用报告",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2440, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst params = $('验证输入').first().json;\n\nif (apiResult.error) {\n  return [{ json: { success: false, action: 'sync_cost', error: apiResult.error.message || 'API 调用失败' } }];\n}\n\nconst costData = apiResult.data || [];\nlet totalCost = 0;\nconst byWorkspace = {};\n\ncostData.forEach(item => {\n  const cost = item.cost_usd || item.cost || 0;\n  totalCost += cost;\n  \n  if (item.workspace_id) {\n    if (!byWorkspace[item.workspace_id]) byWorkspace[item.workspace_id] = 0;\n    byWorkspace[item.workspace_id] += cost;\n  }\n});\n\nreturn [{ json: { \n  success: true, \n  action: 'sync_cost', \n  summary: { \n    total_cost_usd: Math.round(totalCost * 100) / 100,\n    currency: 'USD', \n    starting_at: params.starting_at, \n    ending_at: params.ending_at\n  },\n  by_workspace: byWorkspace,\n  raw_data: costData, \n  synced_at: new Date().toISOString() \n} }];"
+      },
+      "id": "process-sync-cost",
+      "name": "处理费用数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 800]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.anthropic.com/v1/organizations/me",
+        "sendHeaders": true,
+        "headerParameters": { 
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $json.admin_key }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ] 
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "get-org",
+      "name": "获取组织信息",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2440, 1000]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\n\nif (apiResult.error) {\n  return [{ json: { success: false, action: 'get_org', error: apiResult.error.message || 'API 调用失败' } }];\n}\n\nreturn [{ json: { success: true, action: 'get_org', organization: { id: apiResult.id, name: apiResult.name, type: apiResult.type } } }];"
+      },
+      "id": "process-get-org",
+      "name": "处理组织信息",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 1000]
+    }
+  ],
+  "connections": {
+    "Webhook触发": { "main": [[{ "node": "预处理参数", "type": "main", "index": 0 }]] },
+    "预处理参数": { "main": [[{ "node": "需要查询AdminKey", "type": "main", "index": 0 }]] },
+    "需要查询AdminKey": { 
+      "main": [
+        [{ "node": "查询平台账号", "type": "main", "index": 0 }],
+        [{ "node": "验证输入", "type": "main", "index": 0 }]
+      ] 
+    },
+    "查询平台账号": { "main": [[{ "node": "合并AdminKey", "type": "main", "index": 0 }]] },
+    "合并AdminKey": { "main": [[{ "node": "验证输入", "type": "main", "index": 0 }]] },
+    "验证输入": { "main": [[{ "node": "是列出Keys", "type": "main", "index": 0 }]] },
+    "是列出Keys": { 
+      "main": [
+        [{ "node": "列出API Keys", "type": "main", "index": 0 }],
+        [{ "node": "是列出Workspaces", "type": "main", "index": 0 }]
+      ] 
+    },
+    "列出API Keys": { "main": [[{ "node": "处理Keys列表", "type": "main", "index": 0 }]] },
+    "处理Keys列表": { "main": [[{ "node": "是否保存Keys", "type": "main", "index": 0 }]] },
+    "是否保存Keys": { 
+      "main": [
+        [{ "node": "准备Keys数据", "type": "main", "index": 0 }],
+        [{ "node": "Keys同步结果", "type": "main", "index": 0 }]
+      ] 
+    },
+    "准备Keys数据": { "main": [[{ "node": "保存Keys到数据库", "type": "main", "index": 0 }]] },
+    "保存Keys到数据库": { "main": [[{ "node": "Keys同步结果", "type": "main", "index": 0 }]] },
+    "是列出Workspaces": { 
+      "main": [
+        [{ "node": "列出Workspaces", "type": "main", "index": 0 }],
+        [{ "node": "是同步用量", "type": "main", "index": 0 }]
+      ] 
+    },
+    "列出Workspaces": { "main": [[{ "node": "处理Workspaces列表", "type": "main", "index": 0 }]] },
+    "是同步用量": { 
+      "main": [
+        [{ "node": "获取用量报告", "type": "main", "index": 0 }],
+        [{ "node": "是同步费用", "type": "main", "index": 0 }]
+      ] 
+    },
+    "获取用量报告": { "main": [[{ "node": "处理用量数据", "type": "main", "index": 0 }]] },
+    "处理用量数据": { "main": [[{ "node": "是否保存用量", "type": "main", "index": 0 }]] },
+    "是否保存用量": { 
+      "main": [
+        [{ "node": "查询Keys映射", "type": "main", "index": 0 }],
+        [{ "node": "用量无需保存", "type": "main", "index": 0 }]
+      ] 
+    },
+    "查询Keys映射": { "main": [[{ "node": "准备用量记录", "type": "main", "index": 0 }]] },
+    "准备用量记录": { "main": [[{ "node": "保存用量到数据库", "type": "main", "index": 0 }]] },
+    "保存用量到数据库": { "main": [[{ "node": "用量保存结果", "type": "main", "index": 0 }]] },
+    "是同步费用": { 
+      "main": [
+        [{ "node": "获取费用报告", "type": "main", "index": 0 }],
+        [{ "node": "获取组织信息", "type": "main", "index": 0 }]
+      ] 
+    },
+    "获取费用报告": { "main": [[{ "node": "处理费用数据", "type": "main", "index": 0 }]] },
+    "获取组织信息": { "main": [[{ "node": "处理组织信息", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

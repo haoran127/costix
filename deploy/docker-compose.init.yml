@@ -1,0 +1,29 @@
+version: '3.8'
+
+# ========================================
+# 初始化部署配置（用于首次获取 SSL 证书）
+# 使用方法：docker-compose -f docker-compose.init.yml up -d
+# ========================================
+
+services:
+  costix:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        BUILD_MODE: prod
+    container_name: costix-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      # 使用初始化配置（无 SSL）
+      - ./nginx-init.conf:/etc/nginx/conf.d/default.conf:ro
+      # Certbot 验证目录
+      - certbot-webroot:/var/www/certbot
+    environment:
+      - TZ=Asia/Shanghai
+
+volumes:
+  certbot-webroot:
+
