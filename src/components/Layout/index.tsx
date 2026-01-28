@@ -1,19 +1,37 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Dashboard from '../../pages/Dashboard';
 import ApiKeys from '../../pages/ApiKeys';
 import TeamMembers from '../../pages/TeamMembers';
+import PlatformAccounts from '../../pages/PlatformAccounts';
 import ProfileDrawer from '../ProfileDrawer';
 import SettingsDrawer from '../SettingsDrawer';
 import { getCurrentUser, onAuthStateChange, type AuthUser } from '../../lib/auth';
 
 export default function Layout() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [currentSection, setCurrentSection] = useState('apikeys');
   const [currentPlatform, setCurrentPlatform] = useState('all');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+
+  // 根据路由更新当前 section
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith('/dashboard')) {
+      setCurrentSection('dashboard');
+    } else if (path.startsWith('/apikeys')) {
+      setCurrentSection('apikeys');
+    } else if (path.startsWith('/members') || path.startsWith('/team')) {
+      setCurrentSection('members');
+    } else if (path.startsWith('/platform-accounts') || path.startsWith('/settings/platform')) {
+      setCurrentSection('platform-accounts');
+    }
+  }, [location]);
 
   // 获取用户信息
   useEffect(() => {
@@ -53,16 +71,17 @@ export default function Layout() {
     console.log('同步数据...');
   };
 
-  const renderContent = () => {
-    switch (currentSection) {
-      case 'dashboard':
-        return <Dashboard platform={currentPlatform} />;
-      case 'apikeys':
-        return <ApiKeys platform={currentPlatform} />;
-      case 'members':
-        return <TeamMembers />;
-      default:
-        return <ApiKeys platform={currentPlatform} />;
+  const handleSectionChange = (section: string) => {
+    setCurrentSection(section);
+    // 更新路由
+    if (section === 'dashboard') {
+      navigate('/dashboard');
+    } else if (section === 'apikeys') {
+      navigate('/apikeys');
+    } else if (section === 'members') {
+      navigate('/members');
+    } else if (section === 'platform-accounts') {
+      navigate('/platform-accounts');
     }
   };
 
@@ -70,7 +89,7 @@ export default function Layout() {
     <div className="flex h-screen">
       <Sidebar 
         currentSection={currentSection} 
-        onSectionChange={setCurrentSection}
+        onSectionChange={handleSectionChange}
         user={user}
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -83,7 +102,16 @@ export default function Layout() {
           onSync={handleSync}
         />
         <div className="flex-1 overflow-auto p-5 dark:bg-[var(--bg-primary)]">
-          {renderContent()}
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard platform={currentPlatform} />} />
+            <Route path="/apikeys" element={<ApiKeys platform={currentPlatform} />} />
+            <Route path="/members" element={<TeamMembers />} />
+            <Route path="/team" element={<TeamMembers />} />
+            <Route path="/platform-accounts" element={<PlatformAccounts />} />
+            <Route path="/settings/platform" element={<PlatformAccounts />} />
+            <Route path="/" element={<Dashboard platform={currentPlatform} />} />
+            <Route path="*" element={<Dashboard platform={currentPlatform} />} />
+          </Routes>
         </div>
       </main>
 

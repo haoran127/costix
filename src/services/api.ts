@@ -3,19 +3,48 @@
  * LLM API Key 管理相关接口
  */
 
-import { supabaseAdmin } from '../lib/supabase';
+import { supabaseAdmin, supabase } from '../lib/supabase';
 
-// ==================== n8n Webhook URLs ====================
+/**
+ * 获取认证 headers（包含用户 token）
+ */
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  
+  try {
+    const {
+      data: { session },
+    } = await supabase?.auth.getSession() || { data: { session: null } };
+    
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+  } catch (error) {
+    console.warn('获取认证 token 失败:', error);
+  }
+  
+  return headers;
+}
 
-const N8N_OPENAI_LIST_KEYS_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/openai/list-keys';
-const N8N_OPENAI_CREATE_KEY_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/openai/create-key';
-const N8N_OPENAI_DELETE_KEY_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/openai/delete-key';
-const N8N_OPENAI_SYNC_USAGE_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/openai/sync-usage';
+// ==================== API Endpoints ====================
 
-const N8N_CLAUDE_MANAGE_KEYS_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/claude/manage-keys';
-const N8N_CLAUDE_SYNC_DATA_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/claude/sync-data';
+// API endpoints - 使用相对路径，Vercel 会自动路由到 serverless functions
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-const N8N_OPENROUTER_MANAGE_KEYS_URL = 'https://workflow.mindoffice.cn/webhook/developer-platform/openrouter/manage-keys';
+const OPENAI_LIST_KEYS_URL = `${API_BASE_URL}/openai/list-keys`;
+const OPENAI_CREATE_KEY_URL = `${API_BASE_URL}/openai/create-key`;
+const OPENAI_DELETE_KEY_URL = `${API_BASE_URL}/openai/delete-key`;
+const OPENAI_SYNC_USAGE_URL = `${API_BASE_URL}/openai/sync-usage`;
+const OPENAI_SYNC_COSTS_URL = `${API_BASE_URL}/openai/sync-costs`;
+
+const CLAUDE_MANAGE_KEYS_URL = `${API_BASE_URL}/claude/manage-keys`;
+const CLAUDE_SYNC_DATA_URL = `${API_BASE_URL}/claude/sync-data`;
+const CLAUDE_SYNC_COSTS_URL = `${API_BASE_URL}/claude/sync-costs`;
+
+const OPENROUTER_MANAGE_KEYS_URL = `${API_BASE_URL}/openrouter/manage-keys`;
+
+const VOLCENGINE_MANAGE_KEYS_URL = `${API_BASE_URL}/volcengine/manage-keys`;
+const VOLCENGINE_SYNC_DATA_URL = `${API_BASE_URL}/volcengine/sync-data`;
 
 // ==================== 类型定义 ====================
 
@@ -147,6 +176,7 @@ export async function addLLMPlatformAccount(params: {
   platform: 'openai' | 'anthropic' | 'openrouter' | 'aliyun' | 'volcengine' | 'deepseek';
   admin_api_key: string;
   organization_id?: string;
+  project_id?: string;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   if (!supabaseAdmin) return { success: false, error: 'Supabase 未配置' };
   
@@ -161,6 +191,7 @@ export async function addLLMPlatformAccount(params: {
         admin_api_key_encrypted: params.admin_api_key,
         admin_api_key_prefix: keyPrefix,
         organization_id: params.organization_id || null,
+        project_id: params.project_id || null,
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -382,15 +413,16 @@ export async function deleteLLMApiKey(keyId: string): Promise<{ success: boolean
       return { success: false, error: '未找到该 API Key' };
     }
     
-    // OpenAI 平台通过 n8n 删除
+    // OpenAI 平台通过 API 删除
     if (keyData.platform === 'openai' && keyData.platform_key_id && keyData.project_id) {
       const accounts = await getLLMPlatformAccounts();
       const openaiAccount = accounts.find(a => a.platform === 'openai' && a.status === 'active');
       
       if (openaiAccount?.admin_api_key_encrypted) {
-        const response = await fetch(N8N_OPENAI_DELETE_KEY_URL, {
+        const headers = await getAuthHeaders();
+        const response = await fetch(OPENAI_DELETE_KEY_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             admin_key: openaiAccount.admin_api_key_encrypted,
             project_id: keyData.project_id,
@@ -558,6 +590,34 @@ export async function updateLLMApiKeyDescription(
   }
 }
 
+export async function updateLLMApiKeyEncrypted(
+  keyId: string,
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAdmin) return { success: false, error: 'Supabase 未配置' };
+  
+  try {
+    const keyPrefix = apiKey.substring(0, 10);
+    const keySuffix = apiKey.slice(-4);
+    
+    const { error } = await supabaseAdmin
+      .from('llm_api_keys')
+      .update({ 
+        api_key_encrypted: apiKey,
+        api_key_prefix: keyPrefix,
+        api_key_suffix: keySuffix,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', keyId);
+    
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    console.error('更新 API Key 失败:', err);
+    return { success: false, error: (err as Error).message };
+  }
+}
+
 // ==================== OpenAI API ====================
 
 export async function createOpenAIKey(params: {
@@ -581,18 +641,17 @@ export async function createOpenAIKey(params: {
   error?: string;
 }> {
   try {
-    const response = await fetch(N8N_OPENAI_CREATE_KEY_URL, {
+    const headers = await getAuthHeaders();
+    const response = await fetch(OPENAI_CREATE_KEY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(params)
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      if (response.status === 404) {
-        return { success: false, error: 'Key 创建服务未启用，请在 n8n 中导入并激活 openai-create-key workflow' };
-      }
-      return { success: false, error: `创建失败: ${response.statusText} - ${errorText}` };
+      const errorData = await response.json().catch(() => ({ error: errorText }));
+      return { success: false, error: errorData.error || `创建失败: ${response.statusText}` };
     }
     
     return await response.json();
@@ -640,7 +699,7 @@ export async function syncOpenAIKeys(platformAccountId: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await fetch(N8N_OPENAI_LIST_KEYS_URL, {
+    const response = await fetch(OPENAI_LIST_KEYS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platform_account_id: platformAccountId })
@@ -666,9 +725,10 @@ export async function fetchOpenAIUsageDirect(adminKey: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await fetch(N8N_OPENAI_SYNC_USAGE_URL, {
+    const headers = await getAuthHeaders();
+    const response = await fetch(OPENAI_SYNC_USAGE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ admin_key: adminKey })
     });
     
@@ -679,7 +739,7 @@ export async function fetchOpenAIUsageDirect(adminKey: string): Promise<{
           success: false, 
           today_tokens: 0, 
           month_tokens: 0, 
-          error: '用量同步服务未启用，请在 n8n 中导入并激活 openai-sync-usage workflow' 
+          error: '用量同步服务未启用' 
         };
       }
       return { success: false, today_tokens: 0, month_tokens: 0, error: `同步失败: ${response.status} - ${errorText}` };
@@ -720,16 +780,17 @@ export async function fetchOpenAIUsageDirect(adminKey: string): Promise<{
 
 async function claudeManageKeysRequest(params: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
-    const response = await fetch(N8N_CLAUDE_MANAGE_KEYS_URL, {
+    const headers = await getAuthHeaders();
+    const response = await fetch(CLAUDE_MANAGE_KEYS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(params)
     });
     
     if (!response.ok) {
       const errorText = await response.text();
       if (response.status === 404) {
-        return { success: false, error: 'Claude 密钥管理服务未启用，请在 n8n 中导入并激活 claude-manage-keys workflow' };
+        return { success: false, error: 'Claude 密钥管理服务未启用' };
       }
       return { success: false, error: `请求失败: ${response.status} - ${errorText}` };
     }
@@ -743,16 +804,17 @@ async function claudeManageKeysRequest(params: Record<string, unknown>): Promise
 
 async function claudeSyncDataRequest(params: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
-    const response = await fetch(N8N_CLAUDE_SYNC_DATA_URL, {
+    const headers = await getAuthHeaders();
+    const response = await fetch(CLAUDE_SYNC_DATA_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(params)
     });
     
     if (!response.ok) {
       const errorText = await response.text();
       if (response.status === 404) {
-        return { success: false, error: 'Claude 数据同步服务未启用，请在 n8n 中导入并激活 claude-sync-data workflow' };
+        return { success: false, error: 'Claude 数据同步服务未启用' };
       }
       return { success: false, error: `请求失败: ${response.status} - ${errorText}` };
     }
@@ -834,9 +896,10 @@ export async function updateClaudeKey(params: {
 
 async function openrouterManageKeysRequest(params: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
-    const response = await fetch(N8N_OPENROUTER_MANAGE_KEYS_URL, {
+    const headers = await getAuthHeaders();
+    const response = await fetch(OPENROUTER_MANAGE_KEYS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(params)
     });
     return await response.json();
@@ -963,5 +1026,270 @@ export async function syncOpenRouterKeys(adminKey: string, platformAccountId?: s
     }>;
     error?: string;
   }>;
+}
+
+// ==================== 费用同步 ====================
+
+export async function syncOpenAICosts(adminKey: string, platformAccountId?: string): Promise<{
+  success: boolean;
+  summary?: {
+    total_cost_usd: string;
+    month_cost_usd: string;
+    today_cost_usd: string;
+    total_buckets: number;
+    pages_fetched: number;
+    projects_with_costs: number;
+  };
+  matched_keys?: Array<{
+    project_id: string;
+    project_name: string;
+    name: string;
+    db_id: string;
+    month_cost: string;
+    today_cost: string;
+    keys_in_project: number;
+  }>;
+  synced_at?: string;
+  saved_count?: number;
+  errors?: Array<{ api_key_id: string; error: string }>;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(OPENAI_SYNC_COSTS_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ admin_key: adminKey, platform_account_id: platformAccountId })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, error: `同步失败: ${response.statusText} - ${errorText}` };
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      return { success: false, error: data.error || '同步失败' };
+    }
+    
+    return {
+      success: true,
+      summary: data.summary,
+      matched_keys: data.matched_keys,
+      synced_at: data.synced_at || new Date().toISOString(),
+      saved_count: data.saved_count,
+      errors: data.errors,
+    };
+  } catch (err) {
+    console.error('同步 OpenAI 费用失败:', err);
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+export async function syncClaudeCosts(adminKey: string, platformAccountId?: string): Promise<{
+  success: boolean;
+  summary?: {
+    total_cost_usd: string;
+    month_cost_usd: string;
+    today_cost_usd: string;
+    total_buckets: number;
+    workspaces_count: number;
+    unmatched_cost_usd: string;
+    zero_fee_keys_count: number;
+  };
+  matched_keys?: Array<{
+    workspace_id: string;
+    name: string;
+    db_id: string;
+    month_cost: string;
+    today_cost: string;
+    keys_in_workspace: number;
+  }>;
+  synced_at?: string;
+  saved_count?: number;
+  errors?: Array<{ api_key_id: string; error: string }>;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(CLAUDE_SYNC_COSTS_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ admin_key: adminKey, platform_account_id: platformAccountId })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, error: `同步失败: ${response.statusText} - ${errorText}` };
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      return { success: false, error: data.error || '同步失败' };
+    }
+    
+    return {
+      success: true,
+      summary: data.summary,
+      matched_keys: data.matched_keys,
+      synced_at: data.synced_at || new Date().toISOString(),
+      saved_count: data.saved_count,
+      errors: data.errors,
+    };
+  } catch (err) {
+    console.error('同步 Claude 费用失败:', err);
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+// ==================== 火山引擎 API Key 管理 ====================
+
+async function volcengineManageKeysRequest(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(VOLCENGINE_MANAGE_KEYS_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params)
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : '请求失败' };
+  }
+}
+
+export async function createVolcengineKey(params: {
+  access_key_id: string;
+  secret_access_key: string;
+  user_name: string;
+  key_name?: string;
+  business?: string;
+  owner_name?: string;
+  owner_email?: string;
+  owner_phone?: string;
+  platform_account_id?: string;
+}): Promise<{
+  success: boolean;
+  id?: string;
+  access_key_id?: string;
+  secret_access_key?: string;
+  masked_key?: string;
+  message?: string;
+  warning?: string;
+  error?: string;
+}> {
+  return volcengineManageKeysRequest({ 
+    action: 'create', 
+    ...params 
+  }) as Promise<{
+    success: boolean;
+    id?: string;
+    access_key_id?: string;
+    secret_access_key?: string;
+    masked_key?: string;
+    message?: string;
+    warning?: string;
+    error?: string;
+  }>;
+}
+
+export async function deleteVolcengineKey(params: {
+  access_key_id: string;
+  secret_access_key: string;
+  target_access_key_id: string;
+  user_name?: string;
+  db_key_id?: string;
+}): Promise<{
+  success: boolean;
+  message?: string;
+  db_deleted?: boolean;
+  volcengine_deleted?: boolean;
+  error?: string;
+}> {
+  return volcengineManageKeysRequest({ 
+    action: 'delete', 
+    ...params 
+  }) as Promise<{
+    success: boolean;
+    message?: string;
+    db_deleted?: boolean;
+    volcengine_deleted?: boolean;
+    error?: string;
+  }>;
+}
+
+export async function listVolcengineKeys(params: {
+  access_key_id: string;
+  secret_access_key: string;
+  user_name?: string;
+}): Promise<{
+  success: boolean;
+  keys?: Array<{
+    access_key_id: string;
+    status: string;
+    user_name: string;
+    create_date: string;
+    update_date?: string;
+  }>;
+  total?: number;
+  error?: string;
+}> {
+  return volcengineManageKeysRequest({ 
+    action: 'list', 
+    ...params 
+  }) as Promise<{
+    success: boolean;
+    keys?: Array<{
+      access_key_id: string;
+      status: string;
+      user_name: string;
+      create_date: string;
+      update_date?: string;
+    }>;
+    total?: number;
+    error?: string;
+  }>;
+}
+
+export async function syncVolcengineData(params: {
+  access_key_id: string;
+  secret_access_key: string;
+  platform_account_id?: string;
+  sync_balance?: boolean;
+  sync_usage?: boolean;
+}): Promise<{
+  success: boolean;
+  balance?: {
+    available_balance: number;
+    cash_balance: number;
+    credit_limit: number;
+    frozen_balance: number;
+  };
+  usage?: {
+    total_tokens: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    request_count: number;
+  };
+  balance_error?: string;
+  usage_error?: string;
+  keys_count?: number;
+  synced_at?: string;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(VOLCENGINE_SYNC_DATA_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params)
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : '请求失败' };
+  }
 }
 

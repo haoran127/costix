@@ -22,7 +22,7 @@ const AI_PLATFORMS = [
 const PAGE_TITLE_KEYS: Record<string, string> = {
   dashboard: 'dashboard.title',
   apikeys: 'apiKeys.title',
-  members: 'members.title',
+  members: 'team.title',
 };
 
 export default function Header({ currentSection, currentPlatform, onPlatformChange, onSync }: HeaderProps) {

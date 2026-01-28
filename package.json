@@ -17,6 +17,7 @@
     "@iconify/react": "^5.0.2",
     "@supabase/supabase-js": "^2.47.10",
     "@tanstack/react-query": "^5.62.8",
+    "@vercel/node": "^3.0.0",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.13",
     "i18next": "^25.8.0",

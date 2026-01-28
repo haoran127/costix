@@ -11,6 +11,7 @@ import {
   clearLLMApiKeyOwnerContact,
   updateLLMApiKeyBusiness,
   updateLLMApiKeyDescription,
+  updateLLMApiKeyEncrypted,
   fetchOpenAIUsageDirect,
   getLLMPlatformAccounts,
   createOpenAIKey,
@@ -24,9 +25,13 @@ import {
   getOpenRouterCredits,
   syncOpenRouterKeys,
   updatePlatformAccountBalance,
+  syncOpenAICosts,
+  syncClaudeCosts,
+  createVolcengineKey,
+  deleteVolcengineKey,
+  syncVolcengineData,
   type LLMApiKey,
 } from '../services/api';
-import { getTeamMembers, type TeamMember } from '../services/team';
 
 // AI 平台配置
 const AI_PLATFORMS = {
@@ -444,16 +449,10 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     ownerPhone: '',
     expiresAt: '', // 过期时间，空字符串表示永久有效
     projectId: '', // OpenAI 项目 ID（API 创建时需要）
+    userName: '', // 火山引擎 IAM 用户名（API 创建时需要）
   });
   const [isCreating, setIsCreating] = useState(false);
   
-  // 团队成员选择
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [ownerSelectMode, setOwnerSelectMode] = useState<'team' | 'manual'>('team');
-  const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null);
-  const [ownerDropdownOpen, setOwnerDropdownOpen] = useState(false);
-  const [ownerSearchQuery, setOwnerSearchQuery] = useState('');
-  const ownerDropdownRef = useRef<HTMLDivElement>(null);
   
   // 创建成功弹窗
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -544,14 +543,6 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     const initLoad = async () => {
       // 先加载数据
       await loadData();
-      
-      // 加载团队成员
-      try {
-        const members = await getTeamMembers();
-        setTeamMembers(members);
-      } catch (err) {
-        console.error('加载团队成员失败:', err);
-      }
       
       // 然后静默同步 OpenAI 用量（不阻塞页面显示）
       setAutoSyncing(true);
@@ -648,32 +639,49 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     try {
       const accounts = await getLLMPlatformAccounts();
       
-      // OpenAI 用量同步
+      // OpenAI 用量同步 + 费用同步
       if (targetPlatform === 'openai' || targetPlatform === 'all') {
         const openaiAccount = accounts.find(a => a.platform === 'openai' && a.status === 'active');
         
         if (openaiAccount?.admin_api_key_encrypted) {
-          const result = await fetchOpenAIUsageDirect(openaiAccount.admin_api_key_encrypted);
+          const adminKey = openaiAccount.admin_api_key_encrypted;
+          const messages: string[] = [];
           
-          if (result.success) {
+          // 1. 同步用量数据
+          const usageResult = await fetchOpenAIUsageDirect(adminKey);
+          if (usageResult.success) {
             setUsageData({
-              today_tokens: result.today_tokens,
-              month_tokens: result.month_tokens,
-              by_project: result.by_project,
+              today_tokens: usageResult.today_tokens,
+              month_tokens: usageResult.month_tokens,
+              by_project: usageResult.by_project,
               last_synced: new Date().toISOString()
             });
-            
-            await loadData();
-            showToast(`OpenAI 用量同步完成！本月: ${formatNumber(result.month_tokens)} tokens`, 'success');
+            messages.push(`本月 ${formatNumber(usageResult.month_tokens)} tokens`);
+          }
+          
+          // 2. 同步费用数据
+          const costsResult = await syncOpenAICosts(adminKey, openaiAccount.id);
+          if (costsResult.success && costsResult.summary) {
+            const monthCost = parseFloat(costsResult.summary.month_cost_usd || '0');
+            const todayCost = parseFloat(costsResult.summary.today_cost_usd || '0');
+            if (monthCost > 0 || todayCost > 0) {
+              messages.push(`本月费用 $${monthCost.toFixed(2)}，今日 $${todayCost.toFixed(2)}`);
+            }
+          }
+          
+          await loadData();
+          
+          if (messages.length > 0) {
+            showToast(`OpenAI 同步完成！${messages.join('，')}`, 'success');
           } else {
-            showToast(`OpenAI 同步失败: ${result.error}`, 'error');
+            showToast(`OpenAI 同步完成`, 'success');
           }
         } else if (targetPlatform === 'openai') {
           showToast(t('apiKeys.noAdminKey', { platform: 'OpenAI' }), 'error');
         }
       }
       
-      // Claude (Anthropic) 同步 - Keys 列表 + 用量数据
+      // Claude (Anthropic) 同步 - Keys 列表 + 用量数据 + 费用数据
       if (targetPlatform === 'anthropic' || targetPlatform === 'all') {
         const claudeAccount = accounts.find(a => a.platform === 'anthropic' && a.status === 'active');
         
@@ -706,6 +714,16 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             messages.push(`今日 ${formatNumber(todayTokens)} tokens`);
           } else {
             console.error('Claude 今日用量同步失败:', todayResult.error);
+          }
+          
+          // 4. 同步费用数据
+          const costsResult = await syncClaudeCosts(adminKey, claudeAccount.id);
+          if (costsResult.success && costsResult.summary) {
+            const monthCost = parseFloat(costsResult.summary.month_cost_usd || '0');
+            const todayCost = parseFloat(costsResult.summary.today_cost_usd || '0');
+            if (monthCost > 0 || todayCost > 0) {
+              messages.push(`本月费用 $${monthCost.toFixed(2)}，今日 $${todayCost.toFixed(2)}`);
+            }
           }
           
           await loadData();
@@ -760,8 +778,57 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         }
       }
       
+      // 火山引擎同步 - 余额和用量
+      if (targetPlatform === 'volcengine' || targetPlatform === 'all') {
+        const volcengineAccount = accounts.find(a => a.platform === 'volcengine' && a.status === 'active');
+        
+        if (volcengineAccount?.admin_api_key_encrypted) {
+          // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key"
+          const parts = volcengineAccount.admin_api_key_encrypted.split(':');
+          
+          if (parts.length === 2) {
+            const [accessKeyId, secretAccessKey] = parts;
+            const messages: string[] = [];
+            
+            const result = await syncVolcengineData({
+              access_key_id: accessKeyId,
+              secret_access_key: secretAccessKey,
+              platform_account_id: volcengineAccount.id,
+              sync_balance: true,
+              sync_usage: true,
+            });
+            
+            if (result.success) {
+              if (result.balance) {
+                messages.push(`余额 ¥${result.balance.available_balance.toFixed(2)}`);
+              }
+              if (result.usage) {
+                messages.push(`本月 ${formatNumber(result.usage.total_tokens)} tokens`);
+              }
+              if (result.keys_count) {
+                messages.push(`${result.keys_count} 个 Keys`);
+              }
+              
+              await loadData();
+              
+              if (messages.length > 0) {
+                showToast(`火山引擎同步完成！${messages.join('，')}`, 'success');
+              } else {
+                showToast('火山引擎同步完成', 'success');
+              }
+            } else {
+              showToast(`火山引擎同步失败: ${result.error}`, 'error');
+            }
+          } else {
+            showToast('火山引擎 Admin Key 格式错误，应为 "AK:SK" 格式', 'error');
+          }
+        } else if (targetPlatform === 'volcengine') {
+          showToast('未找到火山引擎 Admin Key，请先配置平台账号', 'error');
+        }
+      }
+      
       // 其他平台暂不支持
-      if (targetPlatform !== 'openai' && targetPlatform !== 'anthropic' && targetPlatform !== 'openrouter' && targetPlatform !== 'all') {
+      if (targetPlatform !== 'openai' && targetPlatform !== 'anthropic' && targetPlatform !== 'openrouter' && targetPlatform !== 'volcengine' && targetPlatform !== 'all') {
         showToast(t('apiKeys.syncNotSupported', { platform: AI_PLATFORMS[targetPlatform as PlatformKey]?.name || targetPlatform }), 'info');
       }
     } catch (err) {
@@ -809,34 +876,39 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
 
   // 复制 API Key
   const copyApiKey = async (key: ApiKeyItem) => {
-    // 优先复制完整 key
-    if (key.apiKey && key.apiKey.length > 20) {
-      const success = await copyToClipboardCompat(key.apiKey);
-      if (success) {
-        setCopiedId(key.id);
-        setTimeout(() => setCopiedId(null), 2000);
-        showToast(t('common.copiedToClipboard'), 'success');
-      } else {
-        showToast(t('common.copyFailed'), 'error');
+    try {
+      // 优先复制完整 key
+      if (key.apiKey && key.apiKey.length > 20) {
+        const success = await copyToClipboardCompat(key.apiKey);
+        if (success) {
+          setCopiedId(key.id);
+          setTimeout(() => setCopiedId(null), 2000);
+          showToast(t('common.copiedToClipboard'), 'success');
+        } else {
+          showToast(t('common.copyFailed'), 'error');
+        }
+        return;
       }
-      return;
-    }
-    
-    // 如果没有完整 key，尝试复制 maskedKey（至少可以复制显示的部分）
-    if (key.maskedKey) {
-      const success = await copyToClipboardCompat(key.maskedKey);
-      if (success) {
-        setCopiedId(key.id);
-        setTimeout(() => setCopiedId(null), 2000);
-        showToast(t('apiKeys.cannotCopyKey') + '（已复制显示的部分）', 'warning');
-      } else {
-        showToast(t('common.copyFailed'), 'error');
+      
+      // 如果没有完整 key，尝试复制 maskedKey（至少可以复制显示的部分）
+      if (key.maskedKey) {
+        const success = await copyToClipboardCompat(key.maskedKey);
+        if (success) {
+          setCopiedId(key.id);
+          setTimeout(() => setCopiedId(null), 2000);
+          showToast(t('apiKeys.cannotCopyKey') + '（已复制显示的部分）', 'warning');
+        } else {
+          showToast(t('common.copyFailed'), 'error');
+        }
+        return;
       }
-      return;
+      
+      // 如果都没有，提示无法复制
+      showToast(t('apiKeys.cannotCopyKey'), 'error');
+    } catch (error) {
+      console.error('复制失败:', error);
+      showToast(t('common.copyFailed'), 'error');
     }
-    
-    // 如果都没有，提示无法复制
-    showToast(t('apiKeys.cannotCopyKey'), 'error');
   };
 
   // 删除 API Key
@@ -927,9 +999,6 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     const handleClickOutside = (event: MouseEvent) => {
       if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
         setProjectDropdownOpen(false);
-      }
-      if (ownerDropdownRef.current && !ownerDropdownRef.current.contains(event.target as Node)) {
-        setOwnerDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1098,7 +1167,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           return;
         }
       } else {
-        // API 创建模式：通过 n8n 调用平台 API 创建 Key
+        // API 创建模式：通过 Vercel Serverless Function 调用平台 API 创建 Key
         if (createForm.platform === 'openai') {
           // 获取 Admin Key
           const accounts = await getLLMPlatformAccounts();
@@ -1124,6 +1193,11 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           });
           
           if (result.success && result.api_key) {
+            // 如果返回了 key ID，保存完整 key 到数据库
+            if (result.id && result.api_key) {
+              await updateLLMApiKeyEncrypted(result.id, result.api_key);
+            }
+            
             // 显示成功弹窗
             const projectName = openaiProjects.find(p => p.id === createForm.projectId)?.name;
             setCreatedKeyInfo({
@@ -1187,7 +1261,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       
       setIsCreating(false);
       setIsCreateOpen(false);
-      setCreateForm({ name: '', platform: 'openai', apiKey: '', business: '', ownerName: '', ownerEmail: '', ownerPhone: '', expiresAt: '', projectId: '' });
+      setCreateForm({ name: '', platform: 'openai', apiKey: '', business: '', ownerName: '', ownerEmail: '', ownerPhone: '', expiresAt: '', projectId: '', userName: '' });
       setCreateMode('import');
       setOpenaiProjects([]);
       setOwnerSelectMode('team');
@@ -1462,15 +1536,14 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                           {key.maskedKey}
                         </code>
                         <button 
-                          className={`btn-icon ${!key.apiKey || key.apiKey.length <= 20 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          className={`btn-icon ${!key.apiKey || key.apiKey.length <= 20 ? 'opacity-60' : ''}`}
                           onClick={() => copyApiKey(key)}
-                          title={key.apiKey && key.apiKey.length > 20 ? t('apiKeys.copyApiKey') : t('apiKeys.cannotCopyKey')}
-                          disabled={!key.apiKey || key.apiKey.length <= 20}
+                          title={key.apiKey && key.apiKey.length > 20 ? t('apiKeys.copyApiKey') : (key.maskedKey ? t('apiKeys.copyApiKey') + ' (仅显示部分)' : t('apiKeys.cannotCopyKey'))}
                         >
                           <Icon 
-                            icon={copiedId === key.id ? 'mdi:check' : 'mdi:content-copy'} 
+                            icon={copiedId === key.id ? 'mdi:check' : (!key.apiKey || key.apiKey.length <= 20 ? 'mdi:alert-circle-outline' : 'mdi:content-copy')} 
                             width={16} 
-                            className={copiedId === key.id ? 'text-green-500' : ''} 
+                            className={copiedId === key.id ? 'text-green-500' : (!key.apiKey || key.apiKey.length <= 20 ? 'text-orange-500' : '')} 
                           />
                         </button>
                         {(!key.apiKey || key.apiKey.length <= 20) && (
@@ -1722,13 +1795,16 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                         </code>
                         <button 
                           className={`text-blue-500 hover:text-blue-600 dark:text-[var(--accent-primary)] dark:hover:text-[var(--accent-primary-hover)] transition-colors ${
-                            !selectedKey.apiKey || selectedKey.apiKey.length <= 20 ? 'opacity-60 cursor-not-allowed' : ''
+                            !selectedKey.apiKey || selectedKey.apiKey.length <= 20 ? 'opacity-60' : ''
                           }`}
                           onClick={() => copyApiKey(selectedKey)}
-                          title={selectedKey.apiKey && selectedKey.apiKey.length > 20 ? t('apiKeys.copyApiKey') : t('apiKeys.cannotCopyKey')}
-                          disabled={!selectedKey.apiKey || selectedKey.apiKey.length <= 20}
+                          title={selectedKey.apiKey && selectedKey.apiKey.length > 20 ? t('apiKeys.copyApiKey') : (selectedKey.maskedKey ? t('apiKeys.copyApiKey') + ' (仅显示部分)' : t('apiKeys.cannotCopyKey'))}
                         >
-                          <Icon icon={copiedId === selectedKey.id ? 'mdi:check' : 'mdi:content-copy'} width={14} />
+                          <Icon 
+                            icon={copiedId === selectedKey.id ? 'mdi:check' : (!selectedKey.apiKey || selectedKey.apiKey.length <= 20 ? 'mdi:alert-circle-outline' : 'mdi:content-copy')} 
+                            width={14} 
+                            className={copiedId === selectedKey.id ? 'text-green-500' : (!selectedKey.apiKey || selectedKey.apiKey.length <= 20 ? 'text-orange-500' : '')} 
+                          />
                         </button>
                         {(!selectedKey.apiKey || selectedKey.apiKey.length <= 20) && (
                           <span className="text-xs text-orange-600 dark:text-orange-400" title={t('apiKeys.cannotCopyKey')}>
@@ -2127,6 +2203,23 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 </div>
               </div>
 
+              {/* 火山引擎 IAM 用户名（API 创建模式） */}
+              {createMode === 'create' && createForm.platform === 'volcengine' && (
+                <div className="form-group">
+                  <label className="form-label">IAM 用户名 *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="请输入 IAM 用户名"
+                    value={createForm.userName}
+                    onChange={e => setCreateForm(prev => ({ ...prev, userName: e.target.value }))}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    火山引擎 IAM 用户名，用于创建 AccessKey
+                  </p>
+                </div>
+              )}
+
               {/* OpenAI 项目选择（API 创建模式） */}
               {createMode === 'create' && createForm.platform === 'openai' && (
                 <div className="form-group">
@@ -2224,142 +2317,8 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               <div className="form-group">
                 <label className="form-label">责任人</label>
                 
-                {/* 选择模式切换 */}
-                <div className="flex gap-2 mb-3">
-                  <button
-                    type="button"
-                    className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors flex items-center justify-center gap-2 ${
-                      ownerSelectMode === 'team'
-                        ? 'bg-blue-50 border-blue-500 text-blue-600'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                    onClick={() => {
-                      setOwnerSelectMode('team');
-                      setCreateForm(prev => ({ ...prev, ownerName: '', ownerEmail: '', ownerPhone: '' }));
-                    }}
-                  >
-                    <Icon icon="mdi:account-group" width={16} />
-                    从团队选择
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors flex items-center justify-center gap-2 ${
-                      ownerSelectMode === 'manual'
-                        ? 'bg-blue-50 border-blue-500 text-blue-600'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                    onClick={() => {
-                      setOwnerSelectMode('manual');
-                      setSelectedTeamMember(null);
-                    }}
-                  >
-                    <Icon icon="mdi:pencil" width={16} />
-                    手动填写
-                  </button>
-                </div>
-
-                {ownerSelectMode === 'team' ? (
-                  /* 团队成员选择器 */
-                  <div className="relative" ref={ownerDropdownRef}>
-                    <button
-                      type="button"
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg flex items-center justify-between hover:border-gray-300 transition-colors"
-                      onClick={() => setOwnerDropdownOpen(!ownerDropdownOpen)}
-                    >
-                      {selectedTeamMember ? (
-                        <div className="flex items-center gap-2">
-                          {selectedTeamMember.avatar_url ? (
-                            <img src={selectedTeamMember.avatar_url} className="w-6 h-6 rounded-full" alt="" />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
-                              {(selectedTeamMember.name || selectedTeamMember.email).charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <span className="text-gray-800">{selectedTeamMember.name || selectedTeamMember.email}</span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">选择团队成员...</span>
-                      )}
-                      <Icon icon="mdi:chevron-down" width={18} className={`text-gray-400 transition-transform ${ownerDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {ownerDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-auto">
-                        {/* 搜索框 */}
-                        <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
-                          <div className="relative">
-                            <Icon icon="mdi:magnify" width={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                              type="text"
-                              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                              placeholder={t('apiKeys.searchMember')}
-                              value={ownerSearchQuery}
-                              onChange={e => setOwnerSearchQuery(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* 成员列表 */}
-                        <div className="py-1">
-                          {teamMembers.length === 0 ? (
-                            <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                              <Icon icon="mdi:account-group-outline" width={24} className="mx-auto mb-2 text-gray-300" />
-                              <p>暂无团队成员</p>
-                              <p className="text-xs text-gray-400 mt-1">去「成员管理」邀请成员</p>
-                            </div>
-                          ) : (
-                            teamMembers
-                              .filter(m => m.status === 'active')
-                              .filter(m => {
-                                if (!ownerSearchQuery) return true;
-                                const q = ownerSearchQuery.toLowerCase();
-                                return (m.name?.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
-                              })
-                              .map(member => (
-                                <button
-                                  key={member.id}
-                                  type="button"
-                                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 ${
-                                    selectedTeamMember?.id === member.id ? 'bg-blue-50' : ''
-                                  }`}
-                                  onClick={() => {
-                                    setSelectedTeamMember(member);
-                                    setCreateForm(prev => ({
-                                      ...prev,
-                                      ownerName: member.name || '',
-                                      ownerEmail: member.email,
-                                      ownerPhone: '',
-                                    }));
-                                    setOwnerDropdownOpen(false);
-                                    setOwnerSearchQuery('');
-                                  }}
-                                >
-                                  {member.avatar_url ? (
-                                    <img src={member.avatar_url} className="w-7 h-7 rounded-full" alt="" />
-                                  ) : (
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs">
-                                      {(member.name || member.email).charAt(0).toUpperCase()}
-                                    </div>
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-gray-800 truncate">
-                                      {member.name || member.email.split('@')[0]}
-                                    </div>
-                                    <div className="text-xs text-gray-500 truncate">{member.email}</div>
-                                  </div>
-                                  {selectedTeamMember?.id === member.id && (
-                                    <Icon icon="mdi:check" width={16} className="text-blue-500" />
-                                  )}
-                                </button>
-                              ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* 手动填写表单 */
-                  <div className="space-y-2">
+                {/* 手动填写表单 */}
+                <div className="space-y-2">
                     <div className="relative">
                       <Icon icon="mdi:account" width={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
@@ -2390,8 +2349,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                         onChange={e => setCreateForm(prev => ({ ...prev, ownerPhone: e.target.value }))}
                       />
                     </div>
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* 过期时间 */}

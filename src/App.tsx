@@ -1,27 +1,26 @@
 import { useEffect, useState } from 'react';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Auth from './pages/Auth';
+import Landing from './pages/Landing';
 import { getCurrentUser, onAuthStateChange, type AuthUser } from './lib/auth';
-
-// 认证模式：'supabase' 使用新的 SaaS 认证，'mind' 使用旧的 Mind OIDC
-const AUTH_MODE = import.meta.env.VITE_AUTH_MODE || 'supabase';
-
-// Mind OIDC 相关（保留兼容）
-import Login from './pages/Login';
-import { isMindAuthenticated, handleMindCallback } from './lib/mind-auth';
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
+
+  // 开发模式下更新网页标题
+  useEffect(() => {
+    const isDev = import.meta.env.DEV;
+    if (isDev) {
+      document.title = 'IM30 AI 用量管理';
+    }
+  }, []);
 
   useEffect(() => {
-    if (AUTH_MODE === 'mind') {
-      // Mind OIDC 认证流程
-      handleMindAuth();
-    } else {
-      // Supabase Auth 认证流程
-      handleSupabaseAuth();
-    }
+    // Supabase Auth 认证流程
+    handleSupabaseAuth();
   }, []);
 
   // Supabase Auth 认证
@@ -56,29 +55,6 @@ function App() {
     return () => unsubscribe();
   };
 
-  // Mind OIDC 认证（保留兼容）
-  const handleMindAuth = async () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    
-    if (code) {
-      // 处理 Mind OIDC 回调
-      try {
-        await handleMindCallback();
-        setUser({ id: 'mind', email: '' }); // 简化处理
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } catch (err) {
-        console.error('登录回调失败:', err);
-      }
-    } else {
-      // 检查是否已登录
-      if (isMindAuthenticated()) {
-        setUser({ id: 'mind', email: '' });
-      }
-    }
-    setIsLoading(false);
-  };
-
   // 登录成功回调
   const handleAuthSuccess = () => {
     // Supabase Auth 会通过 onAuthStateChange 自动更新状态
@@ -99,17 +75,50 @@ function App() {
   // 开发模式：可跳过登录验证
   const isDev = import.meta.env.DEV;
   const skipAuth = isDev && import.meta.env.VITE_SKIP_AUTH === 'true';
+  const isAuthenticated = !!user || skipAuth;
 
-  // 未登录
-  if (!user && !skipAuth) {
-    if (AUTH_MODE === 'mind') {
-      return <Login />;
-    }
-    return <Auth onSuccess={handleAuthSuccess} />;
-  }
-
-  // 已登录
-  return <Layout />;
+  return (
+    <Routes>
+      {/* 首页 */}
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Landing />} />
+      
+      {/* 认证页面 */}
+      <Route 
+        path="/auth" 
+        element={
+          isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Auth onSuccess={handleAuthSuccess} />
+          )
+        } 
+      />
+      
+      {/* 已登录用户访问首页，重定向到仪表盘 */}
+      <Route 
+        path="/landing" 
+        element={
+          isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Landing />
+          )
+        } 
+      />
+      
+      {/* 需要认证的路由 */}
+      <Route 
+        path="/*" 
+        element={
+          isAuthenticated ? (
+            <Layout />
+          ) : (
+            <Navigate to="/auth" replace state={{ from: location.pathname }} />
+          )
+        } 
+      />
+    </Routes>
+  );
 }
 
 export default App;

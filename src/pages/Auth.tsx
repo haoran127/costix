@@ -3,9 +3,10 @@
  * 支持：邮箱密码、魔法链接、Google、GitHub
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
+import { languages, type LanguageCode } from '../i18n';
 import {
   signUpWithEmail,
   signInWithEmail,
@@ -25,16 +26,38 @@ interface AuthProps {
 const isDev = import.meta.env.DEV;
 
 export default function Auth({ onSuccess }: AuthProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<AuthMode>('signin');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   
   // 表单数据
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // 点击外部关闭语言菜单
+  useEffect(() => {
+    if (showLangMenu) {
+      const handleClickOutside = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.language-selector')) {
+          setShowLangMenu(false);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', handleClickOutside), 0);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showLangMenu]);
+
+  const handleLanguageChange = (langCode: LanguageCode) => {
+    i18n.changeLanguage(langCode);
+    setShowLangMenu(false);
+  };
+
+  const currentLang = languages.find(lang => lang.code === i18n.language) || languages[0];
 
   // 处理邮箱密码登录
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -47,7 +70,7 @@ export default function Auth({ onSuccess }: AuthProps) {
     if (result.success) {
       onSuccess?.();
     } else {
-      setMessage({ type: 'error', text: result.error || '登录失败' });
+      setMessage({ type: 'error', text: result.error || t('auth.signInFailed') });
     }
     
     setLoading(false);
@@ -60,7 +83,7 @@ export default function Auth({ onSuccess }: AuthProps) {
     setMessage(null);
 
     if (password.length < 6) {
-      setMessage({ type: 'error', text: '密码至少需要6个字符' });
+      setMessage({ type: 'error', text: t('auth.passwordTooShort') });
       setLoading(false);
       return;
     }
@@ -71,10 +94,10 @@ export default function Auth({ onSuccess }: AuthProps) {
       if (result.session) {
         onSuccess?.();
       } else {
-        setMessage({ type: 'success', text: result.error || '注册成功！请查收验证邮件。' });
+        setMessage({ type: 'success', text: result.error || t('auth.signUpSuccess') });
       }
     } else {
-      setMessage({ type: 'error', text: result.error || '注册失败' });
+      setMessage({ type: 'error', text: result.error || t('auth.signUpFailed') });
     }
     
     setLoading(false);
@@ -89,9 +112,9 @@ export default function Auth({ onSuccess }: AuthProps) {
     const result = await signInWithMagicLink(email);
     
     if (result.success) {
-      setMessage({ type: 'success', text: result.error || '登录链接已发送！' });
+      setMessage({ type: 'success', text: result.error || t('auth.linkSent') });
     } else {
-      setMessage({ type: 'error', text: result.error || '发送失败' });
+      setMessage({ type: 'error', text: result.error || t('auth.sendFailed') });
     }
     
     setLoading(false);
@@ -106,9 +129,9 @@ export default function Auth({ onSuccess }: AuthProps) {
     const result = await resetPassword(email);
     
     if (result.success) {
-      setMessage({ type: 'success', text: result.error || '重置邮件已发送！' });
+      setMessage({ type: 'success', text: result.error || t('auth.resetEmailSent') });
     } else {
-      setMessage({ type: 'error', text: result.error || '发送失败' });
+      setMessage({ type: 'error', text: result.error || t('auth.sendFailed') });
     }
     
     setLoading(false);
@@ -128,7 +151,6 @@ export default function Auth({ onSuccess }: AuthProps) {
 
   // 开发环境：模拟登录
   const handleDevLogin = () => {
-    // 在 localStorage 中存储模拟用户信息
     const mockUser = {
       id: 'dev-user-001',
       email: 'dev@costix.net',
@@ -140,60 +162,101 @@ export default function Auth({ onSuccess }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      {/* 背景装饰 */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
-
-      <div className="relative w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-purple-500/30">
-            <Icon icon="mdi:key-chain" width={36} className="text-white" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md">
+        {/* 语言选择器（右上角） */}
+        <div className="flex justify-end mb-4">
+          <div className="relative language-selector">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowLangMenu(!showLangMenu);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700"
+            >
+              <span className="text-base">{currentLang.flag}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:inline">{currentLang.name}</span>
+              <Icon icon="mdi:chevron-down" width={16} className={`text-gray-500 transition-transform ${showLangMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showLangMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                {languages.map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                      i18n.language === lang.code
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <span className="text-base">{lang.flag}</span>
+                    <span className="flex-1 text-left">{lang.name}</span>
+                    {i18n.language === lang.code && (
+                      <Icon icon="mdi:check" width={16} className="text-blue-600 dark:text-blue-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <h1 className="text-3xl font-bold text-white">{t('common.productName')}</h1>
-          <p className="text-gray-400 mt-2">{t('common.productSlogan')}</p>
+        </div>
+
+        {/* Logo 和标题 */}
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <Icon icon="mdi:chart-timeline-variant" width={28} className="text-white" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            {isDev ? 'IM30 AI 用量管理' : t('common.productName')}
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            {isDev ? '企业级 AI 资源成本管理平台' : t('common.productSlogan')}
+          </p>
         </div>
 
         {/* 认证卡片 */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
           {/* 标签切换 */}
           {(mode === 'signin' || mode === 'signup') && (
-            <div className="flex rounded-xl bg-black/20 p-1 mb-6">
+            <div className="flex rounded-lg bg-gray-100 dark:bg-gray-700 p-1 mb-6">
               <button
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                   mode === 'signin'
-                    ? 'bg-white text-gray-900 shadow'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
                 onClick={() => { setMode('signin'); setMessage(null); }}
               >
-                登录
+                {t('auth.signIn')}
               </button>
               <button
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                   mode === 'signup'
-                    ? 'bg-white text-gray-900 shadow'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
                 onClick={() => { setMode('signup'); setMessage(null); }}
               >
-                注册
+                {t('auth.signUp')}
               </button>
             </div>
           )}
 
           {/* 消息提示 */}
           {message && (
-            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+            <div className={`mb-4 p-3 rounded-lg flex items-start gap-2 text-sm ${
               message.type === 'success' 
-                ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-                : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' 
+                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
             }`}>
-              <Icon icon={message.type === 'success' ? 'mdi:check-circle' : 'mdi:alert-circle'} width={18} />
-              <span className="text-sm">{message.text}</span>
+              <Icon 
+                icon={message.type === 'success' ? 'mdi:check-circle' : 'mdi:alert-circle'} 
+                width={18} 
+                className="mt-0.5 flex-shrink-0" 
+              />
+              <span>{message.text}</span>
             </div>
           )}
 
@@ -201,70 +264,74 @@ export default function Auth({ onSuccess }: AuthProps) {
           {mode === 'signin' && (
             <form onSubmit={handleEmailSignIn} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">邮箱</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.email')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">密码</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.password')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:lock-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:lock-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder={t('auth.passwordPlaceholder')}
                     required
-                    className="w-full pl-10 pr-10 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <Icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} width={18} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-sm">
                 <button
                   type="button"
                   onClick={() => { setMode('magic'); setMessage(null); }}
-                  className="text-purple-400 hover:text-purple-300"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                 >
-                  无密码登录
+                  {t('auth.magicLink')}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setMode('forgot'); setMessage(null); }}
-                  className="text-gray-400 hover:text-white"
+                  className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 >
-                  忘记密码？
+                  {t('auth.forgotPassword')}
                 </button>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
               >
                 {loading ? (
                   <Icon icon="mdi:loading" width={20} className="animate-spin" />
                 ) : (
                   <>
-                    <Icon icon="mdi:login" width={20} />
-                    登录
+                    <Icon icon="mdi:login" width={18} />
+                    {t('auth.signIn')}
                   </>
                 )}
               </button>
@@ -275,51 +342,57 @@ export default function Auth({ onSuccess }: AuthProps) {
           {mode === 'signup' && (
             <form onSubmit={handleEmailSignUp} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">姓名</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.name')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:account-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:account-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="您的姓名"
-                    className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    placeholder={t('auth.namePlaceholder')}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">邮箱</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.email')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">密码</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.password')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:lock-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:lock-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="至少6个字符"
+                    placeholder={t('auth.passwordMinLength')}
                     required
                     minLength={6}
-                    className="w-full pl-10 pr-10 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <Icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} width={18} />
                   </button>
@@ -329,22 +402,23 @@ export default function Auth({ onSuccess }: AuthProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
               >
                 {loading ? (
                   <Icon icon="mdi:loading" width={20} className="animate-spin" />
                 ) : (
                   <>
-                    <Icon icon="mdi:account-plus" width={20} />
-                    创建账号
+                    <Icon icon="mdi:account-plus" width={18} />
+                    {t('auth.createAccount')}
                   </>
                 )}
               </button>
 
-              <p className="text-xs text-gray-500 text-center">
-                注册即表示您同意我们的 
-                <a href="#" className="text-purple-400 hover:underline">服务条款</a> 和 
-                <a href="#" className="text-purple-400 hover:underline">隐私政策</a>
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                {t('auth.termsAndPrivacy')}{' '}
+                <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">{t('auth.termsOfService')}</a>
+                {' '}{t('auth.and')}{' '}
+                <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">{t('auth.privacyPolicy')}</a>
               </p>
             </form>
           )}
@@ -353,21 +427,26 @@ export default function Auth({ onSuccess }: AuthProps) {
           {mode === 'magic' && (
             <form onSubmit={handleMagicLink} className="space-y-4">
               <div className="text-center mb-4">
-                <Icon icon="mdi:email-fast" width={48} className="text-purple-400 mx-auto mb-2" />
-                <h3 className="text-white font-medium">无密码登录</h3>
-                <p className="text-sm text-gray-400">我们将发送一个登录链接到您的邮箱</p>
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Icon icon="mdi:email-fast" width={24} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t('auth.magicLinkTitle')}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.magicLinkDesc')}</p>
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.email')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                 </div>
               </div>
@@ -375,14 +454,14 @@ export default function Auth({ onSuccess }: AuthProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
               >
                 {loading ? (
                   <Icon icon="mdi:loading" width={20} className="animate-spin" />
                 ) : (
                   <>
-                    <Icon icon="mdi:send" width={20} />
-                    发送登录链接
+                    <Icon icon="mdi:send" width={18} />
+                    {t('auth.sendMagicLink')}
                   </>
                 )}
               </button>
@@ -390,9 +469,9 @@ export default function Auth({ onSuccess }: AuthProps) {
               <button
                 type="button"
                 onClick={() => { setMode('signin'); setMessage(null); }}
-                className="w-full py-2 text-gray-400 hover:text-white text-sm"
+                className="w-full py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm"
               >
-                ← 返回密码登录
+                {t('auth.backToPasswordLogin')}
               </button>
             </form>
           )}
@@ -401,21 +480,26 @@ export default function Auth({ onSuccess }: AuthProps) {
           {mode === 'forgot' && (
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="text-center mb-4">
-                <Icon icon="mdi:lock-reset" width={48} className="text-purple-400 mx-auto mb-2" />
-                <h3 className="text-white font-medium">重置密码</h3>
-                <p className="text-sm text-gray-400">我们将发送重置密码邮件</p>
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Icon icon="mdi:lock-reset" width={24} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t('auth.resetPasswordTitle')}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.resetPasswordDesc')}</p>
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {t('auth.email')}
+                </label>
                 <div className="relative">
-                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Icon icon="mdi:email-outline" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-base"
                   />
                 </div>
               </div>
@@ -423,14 +507,14 @@ export default function Auth({ onSuccess }: AuthProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
               >
                 {loading ? (
                   <Icon icon="mdi:loading" width={20} className="animate-spin" />
                 ) : (
                   <>
-                    <Icon icon="mdi:email-send" width={20} />
-                    发送重置邮件
+                    <Icon icon="mdi:email-send" width={18} />
+                    {t('auth.sendResetEmail')}
                   </>
                 )}
               </button>
@@ -438,9 +522,9 @@ export default function Auth({ onSuccess }: AuthProps) {
               <button
                 type="button"
                 onClick={() => { setMode('signin'); setMessage(null); }}
-                className="w-full py-2 text-gray-400 hover:text-white text-sm"
+                className="w-full py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm"
               >
-                ← 返回登录
+                {t('auth.backToSignIn')}
               </button>
             </form>
           )}
@@ -449,9 +533,9 @@ export default function Auth({ onSuccess }: AuthProps) {
           {(mode === 'signin' || mode === 'signup') && (
             <>
               <div className="flex items-center my-6">
-                <div className="flex-1 border-t border-white/10"></div>
-                <span className="px-4 text-sm text-gray-500">或使用</span>
-                <div className="flex-1 border-t border-white/10"></div>
+                <div className="flex-1 border-t border-gray-200 dark:border-gray-700"></div>
+                <span className="px-4 text-sm text-gray-500 dark:text-gray-400">{t('auth.orUse')}</span>
+                <div className="flex-1 border-t border-gray-200 dark:border-gray-700"></div>
               </div>
 
               {/* 社交登录 */}
@@ -460,35 +544,35 @@ export default function Auth({ onSuccess }: AuthProps) {
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all"
+                  className="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 transition-colors shadow-sm"
                 >
                   <Icon icon="logos:google-icon" width={18} />
-                  <span className="text-sm">Google</span>
+                  <span className="text-sm font-medium">Google</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleGitHubSignIn}
                   disabled={loading}
-                  className="flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all"
+                  className="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 transition-colors shadow-sm"
                 >
                   <Icon icon="mdi:github" width={20} />
-                  <span className="text-sm">GitHub</span>
+                  <span className="text-sm font-medium">GitHub</span>
                 </button>
               </div>
 
               {/* 开发环境：模拟登录 */}
               {isDev && (
-                <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <button
                     type="button"
                     onClick={handleDevLogin}
-                    className="w-full py-2.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                    className="w-full py-2.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm font-medium transition-colors flex items-center justify-center gap-2"
                   >
                     <Icon icon="mdi:bug" width={18} />
-                    开发模式：模拟登录
+                    {t('auth.devModeLogin')}
                   </button>
-                  <p className="text-xs text-gray-500 text-center mt-2">
-                    ⚠️ 仅开发环境可见
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                    {t('auth.devModeOnly')}
                   </p>
                 </div>
               )}
@@ -497,11 +581,10 @@ export default function Auth({ onSuccess }: AuthProps) {
         </div>
 
         {/* 底部 */}
-        <div className="text-center mt-6 text-sm text-gray-500">
-          © 2026 Costix. All rights reserved.
+        <div className="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
+          © 2026 {isDev ? 'IM30' : t('common.productName')}. All rights reserved.
         </div>
       </div>
     </div>
   );
 }
-

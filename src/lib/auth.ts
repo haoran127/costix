@@ -3,20 +3,10 @@
  * 基于 Supabase Auth，支持多种登录方式
  */
 
-import { createClient, User, Session, AuthError } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
+import { supabase } from './supabase';
 
-// Supabase 客户端配置
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Supabase 环境变量未配置');
-}
-
-// 创建 Supabase 客户端（用于认证）
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+// 使用统一的 Supabase 客户端，避免多次实例化
 
 // ==================== 类型定义 ====================
 
@@ -335,8 +325,4 @@ function getErrorMessage(error: AuthError): string {
   return messages[error.message] || error.message || '操作失败，请稍后重试';
 }
 
-// ==================== 兼容旧的 Mind 认证（可选保留）====================
-
-// 如果需要保留 Mind 登录兼容，可以在这里导出
-// export * from './mind-auth';
 

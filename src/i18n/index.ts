@@ -41,9 +41,38 @@ i18n
     defaultNS: 'translation',
     
     detection: {
+      // 优先使用 localStorage 中保存的语言（用户手动选择的），如果没有则使用浏览器语言
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'costix-language',
       caches: ['localStorage'],
+      // 检测浏览器语言并映射到支持的语言代码
+      convertDetectedLanguage: (lng: string) => {
+        // 映射浏览器语言到支持的语言代码
+        const languageMap: Record<string, string> = {
+          'zh': 'zh-CN',
+          'zh-CN': 'zh-CN',
+          'zh-TW': 'zh-TW',
+          'zh-HK': 'zh-TW',
+          'en': 'en-US',
+          'en-US': 'en-US',
+          'en-GB': 'en-US',
+          'ja': 'ja',
+          'ko': 'ko',
+          'es': 'es',
+          'de': 'de',
+          'fr': 'fr',
+          'pt': 'pt',
+          'ru': 'ru',
+          'id': 'id',
+        };
+        
+        // 提取语言代码（例如 'zh-CN' -> 'zh-CN', 'zh' -> 'zh'）
+        const baseLang = lng.split('-')[0].toLowerCase();
+        const fullLang = lng.split('-').slice(0, 2).join('-');
+        
+        // 优先匹配完整语言代码，然后匹配基础语言代码
+        return languageMap[fullLang] || languageMap[baseLang] || 'en-US';
+      },
     },
 
     interpolation: {

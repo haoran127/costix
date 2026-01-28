@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS llm_platform_accounts (
   -- 统计（缓存）
   keys_count INTEGER DEFAULT 0,                  -- 下属 Key 数量
   total_balance DECIMAL(12, 4),                  -- 账号总余额
+  total_monthly_tokens BIGINT DEFAULT 0,         -- 月度 Token 使用量统计（缓存）
   
   -- 责任人
   owner_id UUID REFERENCES users(id) ON DELETE SET NULL,

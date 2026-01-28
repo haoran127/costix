@@ -28,11 +28,19 @@ const getNavItems = (t: (key: string) => string) => [
   { section: 'team', label: t('nav.team'), items: [
     { id: 'members', label: t('nav.members'), icon: 'mdi:account-group' },
   ]},
+  { section: 'settings', label: t('nav.settings'), items: [
+    { id: 'platform-accounts', label: t('nav.platformAccounts'), icon: 'mdi:cloud-settings' },
+  ]},
 ];
 
 export default function Sidebar({ currentSection, onSectionChange, user, onOpenProfile, onOpenSettings }: SidebarProps) {
   const { t } = useTranslation();
   const navItems = getNavItems(t);
+  
+  // 开发模式下显示不同的产品名称
+  const isDev = import.meta.env.DEV;
+  const productName = isDev ? 'IM30 AI 用量管理' : t('common.productName');
+  const productSlogan = isDev ? 'AI 用量管理' : t('common.productSlogan');
   
   // 用户信息（支持开发模式和真实用户）
   const userName = user?.name || user?.email?.split('@')[0] || '用户';
@@ -80,9 +88,9 @@ export default function Sidebar({ currentSection, onSectionChange, user, onOpenP
         <div className="p-4 border-b border-gray-100 dark:border-slate-700">
           <h1 className="text-base font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
             <Icon icon="mdi:chart-timeline-variant" width={22} className="text-blue-500" />
-            {t('common.productName')}
+            {productName}
           </h1>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('common.productSlogan')}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{productSlogan}</p>
         </div>
 
         {/* Navigation */}

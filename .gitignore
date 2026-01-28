@@ -4,6 +4,7 @@ node_modules/
 
 # Build output
 dist/
+store-console/
 .output/
 
 # Logs
@@ -30,6 +31,14 @@ Thumbs.db
 .cache/
 .turbo/
 .eslintcache
+tsconfig.tsbuildinfo
 
 # 注意：.env 文件会被提交（不在此文件中排除）
 
+.vercel
+
+# 备份文件
+*.bak
+*副本*
+*备份*
+*backup*

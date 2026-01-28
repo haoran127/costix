@@ -1,5 +1,6 @@
 /**
  * 团队成员管理 API 服务
+ * 基于 Supabase Auth
  */
 
 import { supabase } from '../lib/supabase';
@@ -65,13 +66,37 @@ export async function inviteTeamMember(params: {
 
   try {
     // 获取当前用户的团队 ID
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('current_team_id')
       .single();
     
-    if (!profile?.current_team_id) {
-      return { success: false, error: '未找到团队' };
+    if (profileError || !profile?.current_team_id) {
+      // 如果没有 current_team_id，尝试从 team_members 获取
+      const { data: memberData } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '')
+        .limit(1)
+        .single();
+      
+      if (!memberData?.team_id) {
+        return { success: false, error: '未找到团队' };
+      }
+      
+      const { data, error } = await supabase.rpc('invite_team_member', {
+        p_team_id: memberData.team_id,
+        p_email: params.email,
+        p_name: params.name || null,
+        p_role: params.role || 'member'
+      });
+      
+      if (error) {
+        console.error('邀请成员失败:', error);
+        return { success: false, error: error.message };
+      }
+      
+      return data as InviteMemberResult;
     }
 
     const { data, error } = await supabase.rpc('invite_team_member', {

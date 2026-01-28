@@ -12,15 +12,6 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0',
-    proxy: {
-      // Mind API 代理 - 获取团队成员
-      '/api/mind': {
-        target: 'https://login.mindoffice.cn',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/mind/, '/account/api'),
-        // 如果 Mind API 地址不同，修改上面的 target 和 rewrite
-      },
-    },
   },
   preview: {
     port: 4173,
