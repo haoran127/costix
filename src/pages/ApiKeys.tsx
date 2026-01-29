@@ -727,12 +727,25 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     const active = keysToCount.filter(k => k.status === 'active').length;
     
     // 使用平台账号的 total_balance 来计算账户余额
+    // 注意：不能直接相加，因为有美元和人民币两种货币
     // 如果是筛选特定平台，只计算该平台账号的余额
     // 如果是全部平台，计算所有活跃平台账号的余额总和
     const accountsToCount = platformFilter === 'all'
       ? platformAccounts.filter(a => a.status === 'active')
       : platformAccounts.filter(a => a.platform === platformFilter && a.status === 'active');
-    const totalBalance = accountsToCount.reduce((sum, a) => sum + (a.total_balance || 0), 0);
+    
+    // 分别计算美元和人民币余额
+    let usdBalance = 0;
+    let cnyBalance = 0;
+    accountsToCount.forEach(account => {
+      const balance = account.total_balance || 0;
+      // 火山引擎使用人民币，其他平台使用美元
+      if (account.platform === 'volcengine') {
+        cnyBalance += balance;
+      } else {
+        usdBalance += balance;
+      }
+    });
     
     const monthlyUsage = keysToCount.reduce((sum, k) => sum + k.monthlyUsage, 0);
     
@@ -757,7 +770,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       monthlyTokens = keysToCount.reduce((sum, k) => sum + k.tokenUsage.monthly, 0);
     }
     
-    return { total, active, totalBalance, monthlyUsage, monthlyTokens };
+    return { total, active, usdBalance, cnyBalance, monthlyUsage, monthlyTokens };
   }, [apiKeys, platformFilter, platformAccounts]);
 
   // 同步状态
@@ -1724,9 +1737,28 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 style={currentPlatformConfig ? { color: currentPlatformConfig.color } : { color: 'rgb(147 51 234)' }}
               />
             </div>
-            <div>
-              <div className="stat-value">{formatCurrency(stats.totalBalance, platformFilter === 'all' ? undefined : platformFilter)}</div>
-              <div className="stat-label">{t('apiKeys.accountBalance')}</div>
+            <div className="flex-1">
+              {/* 美元余额（小字，灰色） */}
+              {stats.usdBalance > 0 && (
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-0.5">
+                  ${stats.usdBalance.toFixed(2)}
+                </div>
+              )}
+              {/* 人民币余额（大字，橙色，突出显示） */}
+              {stats.cnyBalance > 0 ? (
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                  ¥{stats.cnyBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              ) : stats.usdBalance > 0 ? (
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  ${stats.usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-gray-400 dark:text-gray-500">
+                  $0.00
+                </div>
+              )}
+              <div className="stat-label mt-0.5">{t('apiKeys.accountBalance')}</div>
             </div>
           </div>
         </div>

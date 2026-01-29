@@ -84,9 +84,17 @@ export default function Dashboard({ platform }: DashboardProps) {
     ? platformAccounts.filter(a => a.status === 'active')
     : platformAccounts.filter(a => a.platform === platform && a.status === 'active');
   
-  const totalBalance = filteredAccounts.reduce((sum, acc) => {
-    return sum + (acc.total_balance || 0);
-  }, 0);
+  // 分别计算美元和人民币余额
+  const { usdBalance, cnyBalance } = filteredAccounts.reduce((acc, account) => {
+    const balance = account.total_balance || 0;
+    // 火山引擎使用人民币，其他平台使用美元
+    if (account.platform === 'volcengine') {
+      acc.cnyBalance += balance;
+    } else {
+      acc.usdBalance += balance;
+    }
+    return acc;
+  }, { usdBalance: 0, cnyBalance: 0 });
 
   // 按平台统计
   const keysByPlatform = filteredKeys.reduce((acc, key) => {
@@ -127,12 +135,37 @@ export default function Dashboard({ platform }: DashboardProps) {
           icon="mdi:check-circle-outline"
           color="green"
         />
-        <StatCard
-          title={t('dashboard.totalBalance')}
-          value={`$${totalBalance.toFixed(2)}`}
-          icon="mdi:wallet-outline"
-          color="purple"
-        />
+        {/* Account Balance - 分别显示美元和人民币 */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              {/* 美元余额（小字，灰色） */}
+              {usdBalance > 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-0.5">
+                  ${usdBalance.toFixed(2)}
+                </p>
+              )}
+              {/* 人民币余额（大字，橙色，突出显示） */}
+              {cnyBalance > 0 ? (
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                  ¥{cnyBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              ) : usdBalance > 0 ? (
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                  ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              ) : (
+                <p className="text-2xl font-bold text-gray-400 dark:text-gray-500">
+                  $0.00
+                </p>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('dashboard.totalBalance')}</p>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 w-12 h-12 rounded-lg flex items-center justify-center">
+              <Icon icon="mdi:wallet-outline" width={22} className="text-purple-500" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 平台分布 */}
