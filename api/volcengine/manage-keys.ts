@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getUserFromRequest, verifyTenantAccess } from '../_lib/auth';
-import { generateVolcengineSignature } from '../_lib/volcengine-signature';
+import { getUserFromRequest, verifyTenantAccess } from '../_lib/auth.js';
+import { generateVolcengineSignature } from '../_lib/volcengine-signature.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kstwkcdmqzvhzjhnaopw.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
@@ -37,12 +37,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 验证必需参数
     if (!action) {
-      return res.status(400).json({ success: false, error: '缺少 action 参数（create/delete/list）' });
+      return res.status(400).json({ success: false, error: '缺少 action 参数（create/delete/list/sync）' });
     }
 
-    const validActions = ['create', 'delete', 'list'];
+    const validActions = ['create', 'delete', 'list', 'sync'];
     if (!validActions.includes(action)) {
-      return res.status(400).json({ success: false, error: 'action 必须是 create/delete/list 之一' });
+      return res.status(400).json({ success: false, error: 'action 必须是 create/delete/list/sync 之一' });
     }
 
     let adminAccessKeyId = access_key_id;
@@ -68,14 +68,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ success: false, error: '平台类型不匹配，期望 volcengine' });
       }
 
-      // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key"
-      const parts = account.admin_api_key_encrypted.split(':');
-      if (parts.length !== 2) {
-        return res.status(400).json({ success: false, error: 'Admin Key 格式错误，应为 "AK:SK" 格式' });
+      // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key_base64"
+      // AK 部分是明文，SK 部分是 Base64 编码的
+      const adminKeyValue = account.admin_api_key_encrypted;
+      const parts = adminKeyValue.split(':');
+      
+      if (parts.length < 2) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Admin Key 格式错误，应为 "AK:SK" 格式（SK 为 Base64 编码）'
+        });
       }
-
+      
       adminAccessKeyId = parts[0];
-      adminSecretAccessKey = parts[1];
+      const secretAccessKeyBase64 = parts.slice(1).join(':'); // 如果 SK 中包含冒号，重新组合
+      
+      // 解码 SK（Base64）
+      try {
+        adminSecretAccessKey = Buffer.from(secretAccessKeyBase64, 'base64').toString('utf-8');
+      } catch (e) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'SecretAccessKey Base64 解码失败: ' + (e instanceof Error ? e.message : String(e))
+        });
+      }
     }
 
     if (!adminAccessKeyId || !adminSecretAccessKey) {
@@ -91,7 +107,259 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: '删除 Key 需要提供 target_access_key_id' });
     }
 
-    // API 参数映射
+    // sync 操作 - 同步 Keys 列表并保存到数据库（使用火山方舟 API）
+    if (action === 'sync') {
+      // 1. 调用火山方舟 ListApiKeys API
+      const projectName = req.body.project_name || 'default';
+      const requestBody = JSON.stringify({ ProjectName: projectName });
+
+      const listKeysSignature = generateVolcengineSignature({
+        accessKeyId: adminAccessKeyId,
+        secretAccessKey: adminSecretAccessKey,
+        service: 'ark',
+        region: 'cn-beijing',
+        host: 'ark.cn-beijing.volcengineapi.com',
+        method: 'POST',
+        path: '/',
+        queryParams: {
+          Action: 'ListApiKeys',
+          Version: '2024-01-01',
+        },
+        requestBody,
+        useXContentSha256: true, // 火山方舟 API 需要 X-Content-Sha256 头
+      });
+
+      const keysResponse = await fetch(listKeysSignature.requestUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: listKeysSignature.authorization,
+          'Content-Type': 'application/json',
+          Host: listKeysSignature.host,
+          'X-Content-Sha256': listKeysSignature.xContentSha256 || '',
+          'X-Date': listKeysSignature.xDate,
+        },
+        body: requestBody,
+      });
+
+      const keysData = await keysResponse.json();
+
+      // 调试：打印完整的 API 响应
+      console.log('[volcengine/sync] ListApiKeys API 响应:', JSON.stringify(keysData, null, 2));
+
+      if (keysData.ResponseMetadata && keysData.ResponseMetadata.Error) {
+        const err = keysData.ResponseMetadata.Error;
+        console.error('[volcengine/sync] 获取 Keys 列表失败:', err);
+        return res.status(400).json({
+          success: false,
+          error: err.Message || '获取 Keys 列表失败',
+          code: err.Code,
+        });
+      }
+
+      const result = keysData.Result || {};
+      const items = result.Items || [];
+      
+      console.log('[volcengine/sync] API 返回的 Keys 数量:', items.length);
+      if (items.length > 0) {
+        console.log('[volcengine/sync] 第一个 Key 的完整数据:', JSON.stringify(items[0], null, 2));
+      }
+
+      // 2. 转换数据格式（从火山方舟格式转换为数据库格式）
+      const accessKeys = items.map((key: any) => ({
+        Id: key.Id,
+        Name: key.Name,
+        ApiKey: key.PrimaryKey || key.ApiKey || key.Key || '',
+        Status: key.Status,
+        ProjectName: key.ProjectName,
+        CreateTime: key.CreateTime,
+        UpdateTime: key.UpdateTime,
+        LastAccessTime: key.LastAccessTime,
+        UserId: key.UserId,
+        Tags: key.Tags,
+      }));
+
+      // 调试：打印 API 返回的原始数据
+      console.log('[volcengine/sync] API 返回的 Keys 数量:', accessKeys.length);
+      if (accessKeys.length > 0) {
+        console.log('[volcengine/sync] 第一个 Key 的完整数据:', JSON.stringify(accessKeys[0], null, 2));
+      }
+
+      if (accessKeys.length === 0) {
+        return res.status(200).json({
+          success: true,
+          action: 'sync',
+          keys_count: 0,
+          keys: [],
+          created_count: 0,
+          updated_count: 0,
+          synced_at: new Date().toISOString(),
+        });
+      }
+
+      // 2. 查询数据库中的 Keys 映射（只查询当前租户的 keys）
+      let dbKeysQuery = supabase
+        .from('llm_api_keys')
+        .select('id, platform_key_id, name')
+        .eq('platform', 'volcengine');
+
+      // 只有当 tenant_id 不为 null 时才添加过滤条件
+      if (userInfo.tenantId) {
+        dbKeysQuery = dbKeysQuery.eq('tenant_id', userInfo.tenantId);
+      } else {
+        // 如果 tenant_id 为 null，只查询 tenant_id 为 null 的记录
+        dbKeysQuery = dbKeysQuery.is('tenant_id', null);
+      }
+
+      if (platform_account_id) {
+        dbKeysQuery = dbKeysQuery.eq('platform_account_id', platform_account_id);
+      }
+
+      const { data: dbKeys, error: dbError } = await dbKeysQuery;
+
+      if (dbError) {
+        console.error('[volcengine/sync] 查询数据库 Keys 失败:', dbError);
+        return res.status(500).json({
+          success: false,
+          error: `查询数据库 Keys 失败: ${dbError.message}`,
+        });
+      }
+
+      // 3. 创建 platform_key_id -> db_id 映射
+      const keyIdMap = new Map<string, { id: string; name: string }>();
+      (dbKeys || []).forEach((k: any) => {
+        if (k.platform_key_id) {
+          keyIdMap.set(k.platform_key_id, { id: k.id, name: k.name });
+        }
+      });
+
+      // 4. 分离新 Keys 和已有 Keys
+      const nowISO = new Date().toISOString();
+      const keysToCreate: any[] = [];
+      const keysToUpdate: any[] = [];
+
+      accessKeys.forEach((k: any) => {
+        // 火山方舟 API 返回的字段：Id, Name, Key (脱敏的 API Key), Status, ProjectName, CreateTime, UpdateTime, LastAccessTime, UserId, Tags
+        const platformKeyId = String(k.Id); // platform_key_id 使用 Id（数字ID转为字符串）
+        const existing = keyIdMap.get(platformKeyId);
+
+        // 调试：打印每个 Key 的完整数据
+        console.log('[volcengine/sync] Key 数据:', JSON.stringify(k, null, 2));
+
+        // Key 名称使用 Name 字段（如 "api-key-agentserverv1"）
+        // 如果数据库已有记录，保留原有名称；否则使用 Name
+        const keyName = existing?.name || k.Name || `火山引擎 Key ${k.Id}`;
+        
+        // API Key 值（脱敏后的，如 "cb81****************************5441"）
+        // 注意：映射后的字段名是 ApiKey（大写），不是 Key
+        const apiKeyValue = k.ApiKey || '';
+        // 从脱敏的 Key 中提取前缀和后缀（格式通常是 "cb81****************************5441"）
+        const apiKeyPrefix = apiKeyValue.substring(0, 8) || '';
+        const apiKeySuffix = apiKeyValue.slice(-4) || '';
+
+        console.log('[volcengine/sync] Key 名称:', keyName, 'Id:', k.Id, 'ApiKey:', apiKeyValue);
+
+        // 解析时间字段
+        let createdAt: string | null = null;
+        let lastUsedAt: string | null = null;
+        
+        if (k.CreateTime) {
+          try {
+            createdAt = new Date(k.CreateTime).toISOString();
+          } catch (e) {
+            console.error('[volcengine/sync] CreateTime 解析失败:', k.CreateTime);
+          }
+        }
+        
+        if (k.LastAccessTime) {
+          try {
+            lastUsedAt = new Date(k.LastAccessTime).toISOString();
+          } catch (e) {
+            console.error('[volcengine/sync] LastAccessTime 解析失败:', k.LastAccessTime);
+          }
+        }
+
+        const keyData = {
+          platform: 'volcengine',
+          platform_key_id: platformKeyId,
+          name: keyName,
+          api_key_encrypted: apiKeyValue || `[synced:${k.Id}]`, // 保存脱敏的 API Key 或标记
+          api_key_prefix: apiKeyPrefix,
+          api_key_suffix: apiKeySuffix,
+          status: k.Status === 'Active' ? 'active' : 'inactive',
+          platform_account_id: platform_account_id || null,
+          last_synced_at: nowISO,
+          last_used_at: lastUsedAt, // 使用 LastAccessTime
+          creation_method: 'sync',
+          tenant_id: userInfo.tenantId || null,
+          // 注意：created_at 由数据库自动设置，不需要手动设置
+        };
+
+        if (existing) {
+          // 已有 Key，更新
+          keysToUpdate.push({
+            id: existing.id,
+            ...keyData,
+          });
+        } else {
+          // 新 Key，创建（火山方舟 API 返回脱敏的 API Key）
+          keysToCreate.push({
+            ...keyData,
+          });
+        }
+      });
+
+      // 5. 创建新 Keys
+      let createdCount = 0;
+      if (keysToCreate.length > 0) {
+        const { data: insertedKeys, error: insertError } = await supabase
+          .from('llm_api_keys')
+          .insert(keysToCreate)
+          .select('id, platform_key_id');
+
+        if (insertError) {
+          console.error('[volcengine/sync] 创建新 Keys 失败:', insertError);
+          return res.status(500).json({
+            success: false,
+            error: `创建新 Keys 失败: ${insertError.message}`,
+          });
+        }
+
+        createdCount = insertedKeys?.length || 0;
+      }
+
+      // 6. 更新已有 Keys
+      let updatedCount = 0;
+      if (keysToUpdate.length > 0) {
+        for (const keyUpdate of keysToUpdate) {
+          const { error: updateError } = await supabase
+            .from('llm_api_keys')
+            .update({
+              name: keyUpdate.name,
+              status: keyUpdate.status,
+              last_synced_at: keyUpdate.last_synced_at,
+            })
+            .eq('id', keyUpdate.id);
+
+          if (updateError) {
+            console.error(`[volcengine/sync] 更新 Key ${keyUpdate.id} 失败:`, updateError);
+          } else {
+            updatedCount++;
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        action: 'sync',
+        message: `同步完成！新增 ${createdCount} 个，更新 ${updatedCount} 个 Keys`,
+        keys_count: accessKeys.length,
+        created_count: createdCount,
+        updated_count: updatedCount,
+        synced_at: nowISO,
+      });
+    }
+
+    // API 参数映射（create/delete/list）
     const actionMap: Record<string, string> = {
       create: 'CreateAccessKey',
       delete: 'DeleteAccessKey',
@@ -99,6 +367,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     const apiAction = actionMap[action];
+    
+    if (!apiAction) {
+      return res.status(400).json({ success: false, error: `未知的 action: ${action}` });
+    }
+    
     const service = 'iam';
     const region = 'cn-north-1';
     const host = 'iam.volcengineapi.com';
@@ -206,7 +479,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           owner_phone: owner_phone || null,
           creation_method: 'api',
           created_by: userInfo.userId,
-          tenant_id: userInfo.tenantId,
+          tenant_id: userInfo.tenantId || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

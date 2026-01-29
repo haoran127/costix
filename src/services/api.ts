@@ -48,18 +48,6 @@ const VOLCENGINE_SYNC_DATA_URL = `${API_BASE_URL}/volcengine/sync-data`;
 
 // ==================== 类型定义 ====================
 
-export interface MindUser {
-  id: string;
-  user_center_id: number;
-  base_user_id?: string;
-  nick_name?: string;
-  real_name?: string;
-  icon?: string;
-  email?: string;
-  position?: string;
-  status?: number;
-}
-
 export interface LLMPlatformAccount {
   id: string;
   name: string;
@@ -135,18 +123,6 @@ export interface OpenRouterKey {
 
 // ==================== 用户管理 ====================
 
-export async function fetchMindUsers(): Promise<MindUser[]> {
-  if (!supabaseAdmin) throw new Error('Supabase 未配置');
-  
-  const { data, error } = await supabaseAdmin
-    .from('users')
-    .select('*')
-    .order('nick_name');
-  
-  if (error) throw error;
-  return data || [];
-}
-
 // ==================== LLM 平台账号管理 ====================
 
 export async function getLLMPlatformAccounts(platform?: string): Promise<LLMPlatformAccount[]> {
@@ -207,6 +183,52 @@ export async function addLLMPlatformAccount(params: {
   }
 }
 
+export async function updateLLMPlatformAccount(
+  accountId: string,
+  params: {
+    name?: string;
+    admin_api_key?: string;
+    organization_id?: string;
+    project_id?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAdmin) return { success: false, error: 'Supabase 未配置' };
+  
+  try {
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+    
+    if (params.name !== undefined) {
+      updateData.name = params.name;
+    }
+    
+    if (params.admin_api_key !== undefined) {
+      updateData.admin_api_key_encrypted = params.admin_api_key;
+      updateData.admin_api_key_prefix = params.admin_api_key.substring(0, 15);
+    }
+    
+    if (params.organization_id !== undefined) {
+      updateData.organization_id = params.organization_id || null;
+    }
+    
+    if (params.project_id !== undefined) {
+      updateData.project_id = params.project_id || null;
+    }
+    
+    const { error } = await supabaseAdmin
+      .from('llm_platform_accounts')
+      .update(updateData)
+      .eq('id', accountId);
+    
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    console.error('更新平台账号失败:', err);
+    return { success: false, error: (err as Error).message };
+  }
+}
+
 export async function updatePlatformAccountBalance(
   accountId: string,
   balance: number
@@ -214,18 +236,31 @@ export async function updatePlatformAccountBalance(
   if (!supabaseAdmin) return { success: false, error: 'Supabase 未配置' };
   
   try {
-    const { error } = await supabaseAdmin
+    console.log('[updatePlatformAccountBalance] 更新余额:', {
+      accountId,
+      balance,
+      balance_type: typeof balance
+    });
+    
+    const { data, error } = await supabaseAdmin
       .from('llm_platform_accounts')
       .update({
         total_balance: balance,
         updated_at: new Date().toISOString()
       })
-      .eq('id', accountId);
+      .eq('id', accountId)
+      .select('total_balance');
     
     if (error) throw error;
+    
+    console.log('[updatePlatformAccountBalance] 更新成功:', {
+      accountId,
+      updated_balance: data?.[0]?.total_balance
+    });
+    
     return { success: true };
   } catch (err) {
-    console.error('更新平台账号余额失败:', err);
+    console.error('[updatePlatformAccountBalance] 更新平台账号余额失败:', err);
     return { success: false, error: (err as Error).message };
   }
 }
@@ -240,6 +275,7 @@ export async function getLLMApiKeys(params?: {
   if (!supabaseAdmin) return [];
   
   try {
+    console.log('[getLLMApiKeys] 查询参数:', params);
     let query = supabaseAdmin
       .from('llm_api_keys')
       .select('*')
@@ -247,6 +283,7 @@ export async function getLLMApiKeys(params?: {
     
     if (params?.platform && params.platform !== 'all') {
       query = query.eq('platform', params.platform);
+      console.log(`[getLLMApiKeys] 过滤平台: ${params.platform}`);
     }
     if (params?.status) {
       query = query.eq('status', params.status);
@@ -256,6 +293,27 @@ export async function getLLMApiKeys(params?: {
     }
     
     const { data: keysData, error: keysError } = await query;
+    console.log(`[getLLMApiKeys] 查询结果: ${keysData?.length || 0} 个 keys, 错误:`, keysError);
+    if (keysData && keysData.length > 0) {
+      console.log(`[getLLMApiKeys] Keys 平台分布:`, keysData.reduce((acc: Record<string, number>, k: any) => {
+        acc[k.platform] = (acc[k.platform] || 0) + 1;
+        return acc;
+      }, {}));
+      // 检查过期时间数据
+      const expiresAtStats = keysData.reduce((acc: Record<string, number>, k: any) => {
+        if (k.expires_at) {
+          acc['has_expires_at'] = (acc['has_expires_at'] || 0) + 1;
+        } else {
+          acc['null_expires_at'] = (acc['null_expires_at'] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      console.log(`[getLLMApiKeys] 过期时间统计:`, expiresAtStats);
+      if (expiresAtStats['has_expires_at'] > 0) {
+        const sampleWithExpires = keysData.find((k: any) => k.expires_at);
+        console.log(`[getLLMApiKeys] 示例（有过期时间）:`, { name: sampleWithExpires?.name, expires_at: sampleWithExpires?.expires_at });
+      }
+    }
     if (keysError) throw keysError;
     
     if (!keysData || keysData.length === 0) {
@@ -271,19 +329,49 @@ export async function getLLMApiKeys(params?: {
       .in('api_key_id', keyIds)
       .eq('is_primary', true);
     
-    const ownerUserIds = (ownersData || []).map(o => o.user_id);
-    let usersMap: Record<string, { id: string; nick_name: string; real_name: string; icon: string; email: string; status: number }> = {};
+    const ownerUserIds = (ownersData || []).map(o => o.user_id).filter(Boolean);
+    let usersMap: Record<string, { id: string; name: string; avatar_url: string; email: string }> = {};
     
     if (ownerUserIds.length > 0) {
-      const { data: usersData } = await supabaseAdmin
-        .from('users')
-        .select('id, nick_name, real_name, icon, email, status')
+      // 查询 profiles 表获取用户信息，如果没有则查询 team_members 表
+      const { data: profilesData } = await supabaseAdmin
+        .from('profiles')
+        .select('id, full_name, avatar_url, email')
         .in('id', ownerUserIds);
       
-      usersMap = (usersData || []).reduce((acc, u) => {
-        acc[u.id] = u;
-        return acc;
-      }, {} as typeof usersMap);
+      // 如果 profiles 中没有，尝试从 team_members 获取
+      const foundProfileIds = new Set((profilesData || []).map(p => p.id));
+      const missingUserIds = ownerUserIds.filter(id => !foundProfileIds.has(id));
+      
+      let teamMembersData: any[] = [];
+      if (missingUserIds.length > 0) {
+        const { data: tmData } = await supabaseAdmin
+          .from('team_members')
+          .select('user_id, name, email')
+          .in('user_id', missingUserIds);
+        teamMembersData = tmData || [];
+      }
+      
+      // 合并 profiles 和 team_members 数据
+      (profilesData || []).forEach(p => {
+        usersMap[p.id] = {
+          id: p.id,
+          name: p.full_name || '未知',
+          avatar_url: p.avatar_url || '',
+          email: p.email || ''
+        };
+      });
+      
+      teamMembersData.forEach(tm => {
+        if (tm.user_id && !usersMap[tm.user_id]) {
+          usersMap[tm.user_id] = {
+            id: tm.user_id,
+            name: tm.name || '未知',
+            avatar_url: '',
+            email: tm.email || ''
+          };
+        }
+      });
     }
     
     const ownersMap: Record<string, { user_id: string; user_name: string; user_avatar: string; user_status: number; is_primary: boolean; role: string }> = {};
@@ -292,9 +380,9 @@ export async function getLLMApiKeys(params?: {
       if (user) {
         ownersMap[o.api_key_id] = {
           user_id: user.id,
-          user_name: user.nick_name || user.real_name || '未知',
-          user_avatar: user.icon || '',
-          user_status: user.status,
+          user_name: user.name,
+          user_avatar: user.avatar_url || '',
+          user_status: 1, // 默认状态为活跃
           is_primary: o.is_primary,
           role: o.role || 'owner'
         };
@@ -302,10 +390,48 @@ export async function getLLMApiKeys(params?: {
     });
     
     // 查询用量数据
-    const { data: usageData } = await supabaseAdmin
+    const { data: usageData, error: usageError } = await supabaseAdmin
       .from('llm_api_key_latest_usage')
       .select('api_key_id, balance, token_usage_total, token_usage_monthly, token_usage_daily, total_usage, monthly_usage, synced_at')
       .in('api_key_id', keyIds);
+    
+    if (usageError) {
+      console.error('[getLLMApiKeys] 查询用量数据失败:', usageError);
+    }
+    
+    // 调试：记录 OpenRouter keys 的用量数据
+    const openrouterKeys = keysData.filter(k => k.platform === 'openrouter');
+    if (openrouterKeys.length > 0) {
+      console.log('[getLLMApiKeys] OpenRouter Keys 用量数据:', {
+        keys_count: openrouterKeys.length,
+        usage_records_count: usageData?.length || 0,
+        sample_usage: (usageData || []).filter(u => 
+          openrouterKeys.some(k => k.id === u.api_key_id)
+        ).map(u => ({
+          api_key_id: u.api_key_id,
+          total_usage: u.total_usage,
+          monthly_usage: u.monthly_usage,
+        }))
+      });
+    }
+    
+    // 调试：记录火山引擎 keys 的用量数据
+    const volcengineKeys = keysData.filter(k => k.platform === 'volcengine');
+    if (volcengineKeys.length > 0) {
+      console.log('[getLLMApiKeys] 火山引擎 Keys 用量数据:', {
+        keys_count: volcengineKeys.length,
+        usage_records_count: usageData?.length || 0,
+        sample_usage: (usageData || []).filter(u => 
+          volcengineKeys.some(k => k.id === u.api_key_id)
+        ).map(u => ({
+          api_key_id: u.api_key_id,
+          token_usage_total: u.token_usage_total,
+          token_usage_monthly: u.token_usage_monthly,
+          token_usage_daily: u.token_usage_daily,
+          synced_at: u.synced_at,
+        }))
+      });
+    }
     
     const usageMap: Record<string, {
       balance: number | null;
@@ -661,18 +787,22 @@ export async function createOpenAIKey(params: {
   }
 }
 
-export async function getOpenAIProjects(adminKey: string): Promise<{
+export async function getOpenAIProjects(adminKey: string, platformAccountId?: string): Promise<{
   success: boolean;
   projects?: Array<{ id: string; name: string }>;
   error?: string;
 }> {
   try {
-    const response = await fetch('https://api.openai.com/v1/organization/projects?limit=100', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${adminKey}`,
-        'Content-Type': 'application/json'
-      }
+    const headers = await getAuthHeaders();
+    const body: { admin_key: string; platform_account_id?: string } = { admin_key: adminKey };
+    if (platformAccountId) {
+      body.platform_account_id = platformAccountId;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/openai/list-projects`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
     });
     
     if (!response.ok) {
@@ -681,12 +811,12 @@ export async function getOpenAIProjects(adminKey: string): Promise<{
     }
     
     const data = await response.json();
-    const projects = (data.data || []).map((p: { id: string; name: string }) => ({
-      id: p.id,
-      name: p.name
-    }));
     
-    return { success: true, projects };
+    if (!data.success) {
+      return { success: false, error: data.error || '获取项目列表失败' };
+    }
+    
+    return { success: true, projects: data.projects };
   } catch (err) {
     console.error('获取 OpenAI 项目列表失败:', err);
     return { success: false, error: (err as Error).message };
@@ -699,9 +829,10 @@ export async function syncOpenAIKeys(platformAccountId: string): Promise<{
   error?: string;
 }> {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(OPENAI_LIST_KEYS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ platform_account_id: platformAccountId })
     });
     
@@ -717,7 +848,7 @@ export async function syncOpenAIKeys(platformAccountId: string): Promise<{
   }
 }
 
-export async function fetchOpenAIUsageDirect(adminKey: string): Promise<{
+export async function fetchOpenAIUsageDirect(adminKey: string, platformAccountId?: string): Promise<{
   success: boolean;
   today_tokens: number;
   month_tokens: number;
@@ -726,10 +857,15 @@ export async function fetchOpenAIUsageDirect(adminKey: string): Promise<{
 }> {
   try {
     const headers = await getAuthHeaders();
+    const body: { admin_key: string; platform_account_id?: string } = { admin_key: adminKey };
+    if (platformAccountId) {
+      body.platform_account_id = platformAccountId;
+    }
+    
     const response = await fetch(OPENAI_SYNC_USAGE_URL, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ admin_key: adminKey })
+      body: JSON.stringify(body)
     });
     
     if (!response.ok) {
@@ -829,6 +965,7 @@ async function claudeSyncDataRequest(params: Record<string, unknown>): Promise<R
 export async function listClaudeKeys(adminKey: string, options?: {
   workspace_id?: string;
   status?: 'active' | 'inactive';
+  platform_account_id?: string;
 }): Promise<{
   success: boolean;
   keys?: Array<{
@@ -840,12 +977,20 @@ export async function listClaudeKeys(adminKey: string, options?: {
     partially_redacted_value?: string;
   }>;
   total?: number;
+  saved_count?: number;
   error?: string;
 }> {
-  return claudeSyncDataRequest({ action: 'list_keys', admin_key: adminKey, ...options }) as Promise<{
+  return claudeSyncDataRequest({ 
+    action: 'list_keys', 
+    admin_key: adminKey, 
+    platform_account_id: options?.platform_account_id,
+    save_to_db: options?.platform_account_id ? true : undefined,
+    ...options 
+  }) as Promise<{
     success: boolean;
     keys?: Array<{ id: string; name: string; status: string; created_at: string; workspace_id?: string; partially_redacted_value?: string }>;
     total?: number;
+    saved_count?: number;
     error?: string;
   }>;
 }
@@ -855,6 +1000,7 @@ export async function syncClaudeUsage(adminKey: string, options?: {
   ending_at?: string;
   workspace_id?: string;
   range?: 'today' | 'month';
+  platform_account_id?: string;
 }): Promise<{
   success: boolean;
   summary?: {
@@ -866,7 +1012,13 @@ export async function syncClaudeUsage(adminKey: string, options?: {
   };
   error?: string;
 }> {
-  return claudeSyncDataRequest({ action: 'sync_usage', admin_key: adminKey, ...options }) as Promise<{
+  return claudeSyncDataRequest({ 
+    action: 'sync_usage', 
+    admin_key: adminKey, 
+    platform_account_id: options?.platform_account_id,
+    save_to_db: options?.platform_account_id ? true : undefined,
+    ...options 
+  }) as Promise<{
     success: boolean;
     summary?: { total_input_tokens: number; total_output_tokens: number; total_tokens: number; starting_at: string; ending_at: string };
     error?: string;
@@ -1251,6 +1403,43 @@ export async function listVolcengineKeys(params: {
     total?: number;
     error?: string;
   }>;
+}
+
+export async function syncVolcengineKeys(platformAccountId: string): Promise<{
+  success: boolean;
+  keys_count?: number;
+  created_count?: number;
+  updated_count?: number;
+  keys?: Array<{
+    access_key_id: string;
+    status: string;
+    user_name: string;
+    create_date: string;
+    update_date?: string;
+  }>;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(VOLCENGINE_MANAGE_KEYS_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'sync',
+        platform_account_id: platformAccountId,
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, error: `同步失败: ${response.statusText} - ${errorText}` };
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('同步火山引擎 Keys 失败:', error);
+    return { success: false, error: error instanceof Error ? error.message : '请求失败' };
+  }
 }
 
 export async function syncVolcengineData(params: {

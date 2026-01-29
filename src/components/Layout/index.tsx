@@ -67,8 +67,8 @@ export default function Layout() {
   }, []);
 
   const handleSync = () => {
-    // TODO: 实现同步逻辑
-    console.log('同步数据...');
+    // 移除右上角的同步按钮，因为统计卡片上已经有同步功能了
+    // 如果需要全局同步，可以在这里实现
   };
 
   const handleSectionChange = (section: string) => {

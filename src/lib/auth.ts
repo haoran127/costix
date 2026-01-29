@@ -320,7 +320,13 @@ function getErrorMessage(error: AuthError): string {
     'Unable to validate email address: invalid format': '邮箱格式不正确',
     'Email rate limit exceeded': '请求过于频繁，请稍后再试',
     'For security purposes, you can only request this once every 60 seconds': '请等待60秒后再试',
+    'Too Many Requests': '请求过于频繁，请等待 60 秒后再试',
   };
+
+  // 处理 HTTP 429 错误
+  if (error.status === 429 || error.message.includes('429') || error.message.includes('Too Many Requests')) {
+    return '请求过于频繁，请等待 60 秒后再试';
+  }
 
   return messages[error.message] || error.message || '操作失败，请稍后重试';
 }

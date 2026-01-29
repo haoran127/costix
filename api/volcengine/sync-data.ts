@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getUserFromRequest } from '../_lib/auth';
-import { generateVolcengineSignature } from '../_lib/volcengine-signature';
+import { getUserFromRequest } from '../_lib/auth.js';
+import { generateVolcengineSignature } from '../_lib/volcengine-signature.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kstwkcdmqzvhzjhnaopw.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
@@ -45,14 +45,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ success: false, error: '平台类型不匹配，期望 volcengine' });
       }
 
-      // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key"
-      const parts = account.admin_api_key_encrypted.split(':');
-      if (parts.length !== 2) {
-        return res.status(400).json({ success: false, error: 'Admin Key 格式错误，应为 "AK:SK" 格式' });
+      // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key_base64"
+      // AK 部分是明文，SK 部分是 Base64 编码的
+      const adminKeyValue = account.admin_api_key_encrypted;
+      const parts = adminKeyValue.split(':');
+      
+      if (parts.length < 2) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Admin Key 格式错误，应为 "AK:SK" 格式（SK 为 Base64 编码）'
+        });
       }
-
+      
       adminAccessKeyId = parts[0];
-      adminSecretAccessKey = parts[1];
+      const secretAccessKeyBase64 = parts.slice(1).join(':'); // 如果 SK 中包含冒号，重新组合
+      
+      // 解码 SK（Base64）
+      try {
+        adminSecretAccessKey = Buffer.from(secretAccessKeyBase64, 'base64').toString('utf-8');
+      } catch (e) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'SecretAccessKey Base64 解码失败: ' + (e instanceof Error ? e.message : String(e))
+        });
+      }
     }
 
     if (!adminAccessKeyId || !adminSecretAccessKey) {
@@ -126,12 +142,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           balanceError = balanceData.ResponseMetadata.Error.Message || '余额查询失败';
         } else if (balanceData.Result) {
           const result = balanceData.Result;
+          // 火山引擎余额API返回的单位已经是元，不需要除以100
+          const availableBalance = result.AvailableBalance ? parseFloat(result.AvailableBalance) : 0;
           balance = {
-            available_balance: result.AvailableBalance ? parseFloat(result.AvailableBalance) / 100 : 0,
-            cash_balance: result.CashBalance ? parseFloat(result.CashBalance) / 100 : 0,
-            credit_limit: result.CreditLimit ? parseFloat(result.CreditLimit) / 100 : 0,
-            frozen_balance: result.FrozenBalance ? parseFloat(result.FrozenBalance) / 100 : 0,
+            available_balance: availableBalance,
+            cash_balance: result.CashBalance ? parseFloat(result.CashBalance) : 0,
+            credit_limit: result.CreditLimit ? parseFloat(result.CreditLimit) : 0,
+            frozen_balance: result.FrozenBalance ? parseFloat(result.FrozenBalance) : 0,
           };
+          
+          // 调试：打印余额数据
+          console.log('[volcengine/sync-data] 余额查询结果:', {
+            AvailableBalance: result.AvailableBalance,
+            parsed_available_balance: availableBalance,
+            CashBalance: result.CashBalance,
+            CreditLimit: result.CreditLimit,
+            FrozenBalance: result.FrozenBalance,
+            full_result: result
+          });
         }
       } catch (err) {
         balanceError = (err as Error).message;
@@ -154,40 +182,104 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             Version: '2024-01-01',
           },
           requestBody: JSON.stringify({
-            StartTime: `${monthStartStr}T00:00:00Z`,
-            EndTime: `${monthEndStr}T23:59:59Z`,
-            Aggregation: 'Total',
+            StartTime: Math.floor(monthStart.getTime() / 1000), // Unix 时间戳（秒）
+            EndTime: Math.floor(monthEnd.getTime() / 1000), // Unix 时间戳（秒）
+            Interval: 86400, // 按天聚合
           }),
+          useXContentSha256: true, // 火山方舟 API 需要 X-Content-Sha256 头
+        });
+
+        const usageRequestBody = JSON.stringify({
+          StartTime: Math.floor(monthStart.getTime() / 1000),
+          EndTime: Math.floor(monthEnd.getTime() / 1000),
+          Interval: 86400,
         });
 
         const usageResponse = await fetch(usageSignature.requestUrl, {
           method: 'POST',
           headers: {
             Authorization: usageSignature.authorization,
-            'X-Date': usageSignature.xDate,
-            Host: usageSignature.host,
             'Content-Type': 'application/json',
+            Host: usageSignature.host,
+            'X-Content-Sha256': usageSignature.xContentSha256 || '',
+            'X-Date': usageSignature.xDate,
           },
-          body: usageSignature.requestBody,
+          body: usageRequestBody,
         });
 
         const usageData = await usageResponse.json();
+
+        // 调试：打印完整的用量 API 响应
+        console.log('[volcengine/sync-data] GetUsage API 响应:', JSON.stringify(usageData, null, 2));
 
         if (usageData.ResponseMetadata && usageData.ResponseMetadata.Error) {
           usageError = usageData.ResponseMetadata.Error.Message || '用量查询失败';
         } else if (usageData.Result) {
           const result = usageData.Result;
-          usage = {
-            total_tokens: result.TotalTokens || 0,
-            prompt_tokens: result.PromptTokens || 0,
-            completion_tokens: result.CompletionTokens || 0,
-            request_count: result.RequestCount || 0,
-          };
+          
+          // 火山引擎 GetUsage API 返回的数据结构可能是 UsageResults 数组
+          if (result.UsageResults && Array.isArray(result.UsageResults)) {
+            let promptTokens = 0;
+            let completionTokens = 0;
+            let imageCount = 0;
+            
+            for (const usageResult of result.UsageResults) {
+              const name = usageResult.Name || '';
+              const metricItems = usageResult.MetricItems || [];
+              
+              // 计算该指标的总值
+              let totalValue = 0;
+              for (const item of metricItems) {
+                const values = item.Values || [];
+                totalValue += values.reduce((sum: number, v: any) => sum + (v.Value || 0), 0);
+              }
+              
+              if (name === 'PromptTokens') {
+                promptTokens = totalValue;
+              } else if (name === 'CompletionTokens') {
+                completionTokens = totalValue;
+              } else if (name === 'ImageCount') {
+                imageCount = totalValue;
+              }
+            }
+            
+            usage = {
+              total_tokens: promptTokens + completionTokens,
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              image_count: imageCount,
+              request_count: 0, // 如果 API 返回了请求数，可以添加
+            };
+            
+            // 调试：打印计算后的用量数据
+            console.log('[volcengine/sync-data] 计算后的用量数据:', {
+              promptTokens,
+              completionTokens,
+              total_tokens: usage.total_tokens,
+              imageCount
+            });
+          } else {
+            // 兼容旧的数据结构
+            usage = {
+              total_tokens: result.TotalTokens || 0,
+              prompt_tokens: result.PromptTokens || 0,
+              completion_tokens: result.CompletionTokens || 0,
+              request_count: result.RequestCount || 0,
+            };
+          }
         }
       } catch (err) {
         usageError = (err as Error).message;
       }
     }
+
+    // 调试：打印最终要保存的用量数据
+    console.log('[volcengine/sync-data] 最终用量数据:', {
+      usage,
+      usageError,
+      dbKeysCount: dbKeys.length,
+      monthStartStr
+    });
 
     // 4. 准备要更新的用量记录
     const records = dbKeys.map((key) => ({
@@ -203,26 +295,85 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sync_status: 'success',
       raw_response: JSON.stringify({ balance, usage }),
     }));
+    
+    // 调试：打印第一条记录示例
+    if (records.length > 0) {
+      console.log('[volcengine/sync-data] 第一条用量记录示例:', JSON.stringify(records[0], null, 2));
+    }
 
-    // 5. 保存用量记录
+    // 5. 保存用量记录（使用 PATCH + INSERT 策略，避免 upsert 的唯一约束问题）
     let savedCount = 0;
     const errors: any[] = [];
 
     for (const record of records) {
       try {
-        const { error: upsertError } = await supabase.from('llm_api_key_usage').upsert(record, {
-          onConflict: 'api_key_id,period_start',
-        });
+        // 先尝试更新现有记录
+        const { data: existingData, error: selectError } = await supabase
+          .from('llm_api_key_usage')
+          .select('id')
+          .eq('api_key_id', record.api_key_id)
+          .eq('period_start', record.period_start)
+          .maybeSingle();
 
-        if (upsertError) throw upsertError;
+        if (selectError) throw selectError;
+
+        if (existingData) {
+          // 记录存在，执行更新（PATCH）
+          const { error: updateError } = await supabase
+            .from('llm_api_key_usage')
+            .update({
+              balance: record.balance,
+              credit_limit: record.credit_limit,
+              token_usage_total: record.token_usage_total,
+              token_usage_monthly: record.token_usage_monthly,
+              prompt_tokens_total: record.prompt_tokens_total,
+              completion_tokens_total: record.completion_tokens_total,
+              synced_at: record.synced_at,
+              sync_status: record.sync_status,
+              raw_response: record.raw_response,
+            })
+            .eq('id', existingData.id);
+
+          if (updateError) throw updateError;
+        } else {
+          // 记录不存在，执行插入（INSERT）
+          const { error: insertError } = await supabase
+            .from('llm_api_key_usage')
+            .insert(record);
+
+          if (insertError) throw insertError;
+        }
+
         savedCount++;
+        
+        // 调试：打印保存后的数据
+        if (savedCount === 1) {
+          console.log('[volcengine/sync-data] 第一条记录保存成功:', {
+            api_key_id: record.api_key_id,
+            token_usage_monthly: record.token_usage_monthly,
+            token_usage_total: record.token_usage_total,
+            method: existingData ? 'UPDATE' : 'INSERT'
+          });
+        }
       } catch (err) {
+        console.error('[volcengine/sync-data] 保存记录失败:', {
+          api_key_id: record.api_key_id,
+          error: (err as Error).message,
+          record
+        });
         errors.push({
           api_key_id: record.api_key_id,
           error: (err as Error).message,
         });
       }
     }
+    
+    console.log('[volcengine/sync-data] 保存完成:', {
+      savedCount,
+      totalRecords: records.length,
+      errorsCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
 
     // 6. 更新同步时间
     await supabase

@@ -41,6 +41,10 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     const { data, error } = await supabase.rpc('get_my_team_members');
     
     if (error) {
+      // 如果是没有团队的错误，返回空数组（这是正常的）
+      if (error.code === 'P0001' || error.message?.includes('没有团队')) {
+        return [];
+      }
       console.error('获取团队成员失败:', error);
       return [];
     }

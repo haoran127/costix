@@ -45,18 +45,15 @@ export async function getUserFromRequest(req: VercelRequest): Promise<{
       .from('profiles')
       .select('tenant_id, email')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // 使用 maybeSingle() 而不是 single()，允许返回 null
 
+    // 如果查询出错或没有找到 profile，仍然返回用户信息（tenant_id 可能为 null）
     if (profileError) {
       console.error('获取用户 profile 失败:', profileError);
-      // 即使获取 profile 失败，也返回用户 ID（tenant_id 可能为 null）
-      return {
-        userId: user.id,
-        tenantId: null,
-        email: user.email || null,
-      };
     }
 
+    // 即使没有 profile 记录，也返回用户 ID（tenant_id 可能为 null）
+    // 这在用户刚注册但 profile 还未创建时可能发生
     return {
       userId: user.id,
       tenantId: profile?.tenant_id || null,

@@ -35,6 +35,7 @@ export interface VolcengineSignatureParams {
   path: string;
   queryParams: Record<string, string>;
   requestBody?: string;
+  useXContentSha256?: boolean; // 火山方舟 API 需要 X-Content-Sha256 头
 }
 
 export interface VolcengineSignatureResult {
@@ -42,6 +43,7 @@ export interface VolcengineSignatureResult {
   authorization: string;
   xDate: string;
   host: string;
+  xContentSha256?: string; // 火山方舟 API 需要
 }
 
 export function generateVolcengineSignature(
@@ -70,28 +72,29 @@ export function generateVolcengineSignature(
     .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(queryParams[key])}`)
     .join('&');
 
-  // 构建规范请求头
-  const canonicalHeaders = `host:${host}\nx-date:${amzDate}\n`;
-  const signedHeaders = 'host;x-date';
-
-  // 如果有请求体，添加 content-type 头
-  let finalCanonicalHeaders = canonicalHeaders;
-  let finalSignedHeaders = signedHeaders;
-  if (requestBody && method === 'POST') {
-    finalCanonicalHeaders = `content-type:application/json\n${canonicalHeaders}`;
-    finalSignedHeaders = 'content-type;host;x-date';
-  }
-
   // 请求体哈希
   const payloadHash = sha256Hash(requestBody);
+
+  // 构建规范请求头
+  let canonicalHeaders = `host:${host}\nx-date:${amzDate}\n`;
+  let signedHeaders = 'host;x-date';
+
+  // 火山方舟 API 需要 content-type 和 x-content-sha256 头
+  if (params.useXContentSha256 || (requestBody && method === 'POST')) {
+    canonicalHeaders = `content-type:application/json\nhost:${host}\nx-content-sha256:${payloadHash}\nx-date:${amzDate}\n`;
+    signedHeaders = 'content-type;host;x-content-sha256;x-date';
+  } else if (requestBody && method === 'POST') {
+    canonicalHeaders = `content-type:application/json\n${canonicalHeaders}`;
+    signedHeaders = 'content-type;host;x-date';
+  }
 
   // 构建规范请求
   const canonicalRequest = [
     method,
     path,
     canonicalQueryString,
-    finalCanonicalHeaders,
-    finalSignedHeaders,
+    canonicalHeaders,
+    signedHeaders,
     payloadHash,
   ].join('\n');
 
@@ -110,16 +113,23 @@ export function generateVolcengineSignature(
   const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
 
   // 构建 Authorization 头
-  const authorization = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${finalSignedHeaders}, Signature=${signature}`;
+  const authorization = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
   // 构建完整 URL
   const requestUrl = `https://${host}${path}${canonicalQueryString ? '?' + canonicalQueryString : ''}`;
 
-  return {
+  const result: VolcengineSignatureResult = {
     requestUrl,
     authorization,
     xDate: amzDate,
     host,
   };
+
+  // 火山方舟 API 需要返回 xContentSha256
+  if (params.useXContentSha256 || (requestBody && method === 'POST' && signedHeaders.includes('x-content-sha256'))) {
+    result.xContentSha256 = payloadHash;
+  }
+
+  return result;
 }
 

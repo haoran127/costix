@@ -101,8 +101,20 @@ export default function Dashboard({ platform }: DashboardProps) {
 
   return (
     <div className="space-y-6 animate-in">
-      {/* 统计卡片 */}
+      {/* 统计卡片 - 顺序：Monthly Usage、Monthly Tokens、Total Keys、Active Keys、Total Balance */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <StatCard
+          title={t('dashboard.monthlyUsage')}
+          value={`$${totalUsageThisMonth.toFixed(2)}`}
+          icon="mdi:chart-line"
+          color="orange"
+        />
+        <StatCard
+          title={t('dashboard.monthlyTokens')}
+          value={formatNumber(monthlyTokens)}
+          icon="mdi:message-processing-outline"
+          color="indigo"
+        />
         <StatCard
           title={t('dashboard.totalKeys')}
           value={totalKeys}
@@ -120,18 +132,6 @@ export default function Dashboard({ platform }: DashboardProps) {
           value={`$${totalBalance.toFixed(2)}`}
           icon="mdi:wallet-outline"
           color="purple"
-        />
-        <StatCard
-          title={t('dashboard.monthlyUsage')}
-          value={`$${totalUsageThisMonth.toFixed(2)}`}
-          icon="mdi:currency-usd"
-          color="orange"
-        />
-        <StatCard
-          title={t('dashboard.monthlyTokens')}
-          value={formatNumber(monthlyTokens)}
-          icon="mdi:chart-timeline-variant"
-          color="indigo"
         />
       </div>
 

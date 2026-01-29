@@ -60,10 +60,7 @@ export default function Header({ currentSection, currentPlatform, onPlatformChan
           />
           <Icon icon="mdi:magnify" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} />
         </div>
-        <button className="btn-sync" onClick={onSync}>
-          <Icon icon="mdi:cloud-sync-outline" width={18} />
-          <span>{t('common.syncData')}</span>
-        </button>
+        {/* 移除右上角的同步按钮，因为统计卡片上已经有同步功能了 */}
       </div>
     </header>
   );

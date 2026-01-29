@@ -16,6 +16,7 @@ import {
   getLLMPlatformAccounts,
   createOpenAIKey,
   getOpenAIProjects,
+  syncOpenAIKeys,
   listClaudeKeys,
   syncClaudeUsage,
   updateClaudeKey,
@@ -29,9 +30,11 @@ import {
   syncClaudeCosts,
   createVolcengineKey,
   deleteVolcengineKey,
+  syncVolcengineKeys,
   syncVolcengineData,
   type LLMApiKey,
 } from '../services/api';
+import { getTeamMembers, type TeamMember } from '../services/team';
 
 // AI 平台配置
 const AI_PLATFORMS = {
@@ -285,15 +288,6 @@ const MOCK_API_KEYS = [
   },
 ];
 
-// Mock Mind 用户列表
-const MOCK_MIND_USERS = [
-  { id: 'user1', name: '张三', email: 'zhangsan@company.com', avatar: null, status: 'active' as const },
-  { id: 'user2', name: '李四', email: 'lisi@company.com', avatar: null, status: 'active' as const },
-  { id: 'user3', name: '王五', email: 'wangwu@company.com', avatar: null, status: 'resigned' as const }, // 离职
-  { id: 'user4', name: '赵六', email: 'zhaoliu@company.com', avatar: null, status: 'active' as const },
-  { id: 'user5', name: '钱七', email: 'qianqi@company.com', avatar: null, status: 'resigned' as const }, // 离职
-];
-
 // API Key 接口类型
 interface ApiKeyItem {
   id: string;
@@ -304,7 +298,7 @@ interface ApiKeyItem {
   apiKey: string;
   maskedKey: string;
   status: 'active' | 'inactive' | 'low_balance' | 'expired';
-  balance: number;
+  balance: number | null; // null 表示该平台不支持余额（如 OpenAI、Claude 按量付费）
   totalUsage: number;
   monthlyUsage: number;
   tokenUsage: {
@@ -346,8 +340,13 @@ function formatNumber(num: number): string {
 }
 
 // 格式化金额
-function formatCurrency(amount: number): string {
-  return '$' + amount.toFixed(2);
+function formatCurrency(amount: number | null | undefined, platform?: string): string {
+  if (amount === null || amount === undefined) {
+    return '-';
+  }
+  // 火山引擎使用人民币（¥），其他平台使用美元（$）
+  const currencySymbol = platform === 'volcengine' ? '¥' : '$';
+  return currencySymbol + amount.toFixed(2);
 }
 
 // 格式化日期
@@ -399,6 +398,8 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [platformFilter, setPlatformFilter] = useState<string>(platform || 'all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortField, setSortField] = useState<'balance' | 'tokens' | null>('balance');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // 同步顶部平台筛选
   useEffect(() => {
@@ -418,12 +419,9 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   const [keyDescription, setKeyDescription] = useState('');  // 密钥备注（独立于责任人）
   const [savingOwner, setSavingOwner] = useState(false);
   const [savingDescription, setSavingDescription] = useState(false);  // 保存备注状态
-  // 责任人联系信息表单
-  const [ownerContactForm, setOwnerContactForm] = useState({
-    name: '',
-    phone: '',
-    email: ''
-  });
+  // 团队成员列表（用于选择责任人）
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>(''); // 选中的团队成员 ID
   const [autoSyncing, setAutoSyncing] = useState(false);  // 自动同步状态
   const [platformAccounts, setPlatformAccounts] = useState<Array<{ id: string; platform: string; total_balance: number | null; status: string }>>([]);  // 平台账号数据
   
@@ -474,6 +472,12 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   // 转换 LLMApiKey 为 ApiKeyItem
   const convertToApiKeyItem = useCallback((key: LLMApiKey): ApiKeyItem => {
     const primaryOwner = key.owners?.find(o => o.is_primary);
+    
+    // 判断平台是否有余额概念
+    // OpenAI 和 Claude 是按使用量付费，没有余额；Volcengine 有余额；OpenRouter 按使用量付费，没有余额
+    const hasBalance = key.platform === 'volcengine';
+    const balance = hasBalance ? (key.balance ?? null) : null; // 无余额的平台设为 null
+    
     return {
       id: key.id,
       name: key.name,
@@ -483,7 +487,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       apiKey: key.api_key_encrypted || '', // 完整 Key（用于复制）
       maskedKey: `${key.api_key_prefix || '***'}****${key.api_key_suffix || '***'}`,
       status: key.status as 'active' | 'inactive' | 'low_balance' | 'expired',
-      balance: key.balance ?? 0, // 从数据库获取余额
+      balance: balance, // 有余额的平台显示余额，无余额的平台为 null
       totalUsage: key.total_cost || 0,
       monthlyUsage: key.month_cost || 0,
       tokenUsage: {
@@ -512,14 +516,28 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     };
   }, []);
 
+  // 显示 Toast 函数需要在 loadData 之前定义
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+    // 自动消失时间：成功和提示 3 秒，错误 5 秒
+    setTimeout(() => setToast(null), type === 'error' ? 5000 : 3000);
+  }, []);
+
   // 加载数据
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // 如果 platformFilter 是 'all'，不传递 platform 参数，获取所有平台的 keys
       const [keysData, accountsData] = await Promise.all([
-        getLLMApiKeys({ platform: platformFilter }),
+        getLLMApiKeys(platformFilter === 'all' ? undefined : { platform: platformFilter }),
         getLLMPlatformAccounts()
       ]);
+      
+      console.log(`[loadData] 加载完成: ${keysData.length} 个 keys, platformFilter: ${platformFilter}`);
+      console.log(`[loadData] Keys 平台分布:`, keysData.reduce((acc: Record<string, number>, k: any) => {
+        acc[k.platform] = (acc[k.platform] || 0) + 1;
+        return acc;
+      }, {}));
       
       setApiKeys(keysData.map(convertToApiKeyItem));
       setPlatformAccounts(accountsData.map(a => ({
@@ -528,6 +546,10 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         total_balance: a.total_balance ?? null,
         status: a.status
       })));
+      
+      // 加载团队成员列表
+      const members = await getTeamMembers();
+      setTeamMembers(members);
     } catch (err) {
       console.error('加载数据失败:', err);
       showToast('加载数据失败', 'error');
@@ -536,47 +558,101 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [platformFilter, convertToApiKeyItem]);
+  }, [platformFilter, convertToApiKeyItem, showToast]);
 
-  // 初始化加载 + 自动同步
+  // 当 platformFilter 改变时，重新加载数据
   useEffect(() => {
-    const initLoad = async () => {
-      // 先加载数据
-      await loadData();
+    loadData();
+  }, [platformFilter, loadData]);
+
+  // 初始化自动同步（仅首次加载，使用 localStorage 记录上次同步时间）
+  // 注意：自动同步不会触发 loadData()，避免循环调用
+  useEffect(() => {
+    const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5分钟间隔
+    const LAST_SYNC_KEY = 'keypilot_last_auto_sync';
+    
+    const initSync = async () => {
+      // 检查是否需要自动同步（距离上次同步超过5分钟）
+      const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+      const now = Date.now();
+      if (lastSync && (now - parseInt(lastSync)) < AUTO_SYNC_INTERVAL) {
+        console.log('[自动同步] 距离上次同步时间过短，跳过本次同步');
+        return;
+      }
       
-      // 然后静默同步 OpenAI 用量（不阻塞页面显示）
+      // 然后静默同步 OpenAI Keys 和用量（不阻塞页面显示）
       setAutoSyncing(true);
       try {
+        console.log('[自动同步] 开始同步，检查平台账号...');
         const accounts = await getLLMPlatformAccounts();
-        const openaiAccount = accounts.find(a => a.platform === 'openai' && a.status === 'active');
+        console.log('[自动同步] 平台账号列表:', accounts.map(a => ({ platform: a.platform, status: a.status, id: a.id })));
         
+        const openaiAccount = accounts.find(a => a.platform === 'openai' && a.status === 'active');
+        const claudeAccount = accounts.find(a => a.platform === 'anthropic' && a.status === 'active');
+        
+        console.log('[自动同步] OpenAI 账号:', openaiAccount ? { id: openaiAccount.id, hasKey: !!openaiAccount.admin_api_key_encrypted } : '未找到');
+        console.log('[自动同步] Claude 账号:', claudeAccount ? { id: claudeAccount.id, hasKey: !!claudeAccount.admin_api_key_encrypted } : '未找到');
+        
+        // OpenAI 同步
         if (openaiAccount?.admin_api_key_encrypted) {
-          const result = await fetchOpenAIUsageDirect(openaiAccount.admin_api_key_encrypted);
+          console.log('[自动同步] 开始同步 OpenAI Keys...');
+          // 1. 先同步 Keys 列表（如果数据库中没有）
+          const keysResult = await syncOpenAIKeys(openaiAccount.id);
+          console.log('[自动同步] OpenAI Keys 同步结果:', { success: keysResult.success, saved_count: (keysResult as any).saved_count, error: keysResult.error });
+          
+          // 2. 然后同步用量（sync-usage 会自动同步缺失的 keys）
+          console.log('[自动同步] 开始同步 OpenAI 用量...');
+          const result = await fetchOpenAIUsageDirect(openaiAccount.admin_api_key_encrypted, openaiAccount.id);
+          console.log('[自动同步] OpenAI 用量同步结果:', { success: result.success, error: result.error });
+          
           if (result.success) {
-            // 同步成功后重新加载数据以获取最新用量
-            await loadData();
-            console.log('[自动同步] OpenAI 用量同步完成');
+            console.log('[自动同步] OpenAI 同步完成');
+            // 记录本次同步时间
+            localStorage.setItem(LAST_SYNC_KEY, now.toString());
           }
+        } else {
+          console.log('[自动同步] OpenAI 账号不存在或没有配置 Admin Key，跳过同步');
+        }
+        
+        // Claude 同步
+        if (claudeAccount?.admin_api_key_encrypted) {
+          console.log('[自动同步] 开始同步 Claude Keys...');
+          const claudeKeysResult = await listClaudeKeys(claudeAccount.admin_api_key_encrypted, { platform_account_id: claudeAccount.id });
+          console.log('[自动同步] Claude Keys 同步结果:', { success: claudeKeysResult.success, total: claudeKeysResult.total, saved_count: claudeKeysResult.saved_count, error: claudeKeysResult.error });
+          
+          if (claudeKeysResult.success) {
+            console.log('[自动同步] 开始同步 Claude 用量（月度）...');
+            const claudeMonthResult = await syncClaudeUsage(claudeAccount.admin_api_key_encrypted, { range: 'month', platform_account_id: claudeAccount.id });
+            console.log('[自动同步] Claude 月度用量同步结果:', { success: claudeMonthResult.success, error: claudeMonthResult.error, summary: claudeMonthResult.summary });
+            
+            console.log('[自动同步] 开始同步 Claude 用量（今日）...');
+            const claudeTodayResult = await syncClaudeUsage(claudeAccount.admin_api_key_encrypted, { range: 'today', platform_account_id: claudeAccount.id });
+            console.log('[自动同步] Claude 今日用量同步结果:', { success: claudeTodayResult.success, error: claudeTodayResult.error, summary: claudeTodayResult.summary });
+            
+            // 同步费用数据
+            console.log('[自动同步] 开始同步 Claude 费用...');
+            const claudeCostsResult = await syncClaudeCosts(claudeAccount.admin_api_key_encrypted, claudeAccount.id);
+            console.log('[自动同步] Claude 费用同步结果:', { success: claudeCostsResult.success, error: claudeCostsResult.error, summary: claudeCostsResult.summary });
+            
+            // 记录本次同步时间
+            localStorage.setItem(LAST_SYNC_KEY, now.toString());
+          }
+        } else {
+          console.log('[自动同步] Claude 账号不存在或没有配置 Admin Key，跳过同步');
         }
       } catch (err) {
-        console.warn('[自动同步] 同步失败:', err);
+        console.error('[自动同步] 同步失败:', err);
       } finally {
         setAutoSyncing(false);
       }
     };
     
-    initLoad();
-  }, []);
+    initSync();
+  }, []); // 空依赖数组，只在组件挂载时执行一次
 
-  // 显示 Toast 函数需要在 loadData 之前定义
-  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  // 筛选后的数据
+  // 筛选和排序后的数据
   const filteredKeys = useMemo(() => {
-    return apiKeys.filter(key => {
+    let filtered = apiKeys.filter(key => {
       // 搜索过滤
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -598,7 +674,47 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       }
       return true;
     });
-  }, [apiKeys, searchQuery, platformFilter, statusFilter]);
+
+    // 排序
+    if (sortField) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: number;
+        let bValue: number;
+
+        if (sortField === 'balance') {
+          // 按本月消费排序
+          aValue = a.monthlyUsage ?? 0;
+          bValue = b.monthlyUsage ?? 0;
+        } else if (sortField === 'tokens') {
+          // 按本月 Tokens 排序
+          aValue = a.tokenUsage?.monthly ?? 0;
+          bValue = b.tokenUsage?.monthly ?? 0;
+        } else {
+          return 0;
+        }
+
+        if (sortDirection === 'asc') {
+          return aValue - bValue;
+        } else {
+          return bValue - aValue;
+        }
+      });
+    }
+
+    return filtered;
+  }, [apiKeys, searchQuery, platformFilter, statusFilter, sortField, sortDirection]);
+
+  // 处理排序点击
+  const handleSort = (field: 'balance' | 'tokens') => {
+    if (sortField === field) {
+      // 切换排序方向
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 设置新的排序字段，默认降序
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
 
   // 统计数据 - 根据当前选中的平台计算
   const stats = useMemo(() => {
@@ -634,7 +750,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   // 同步平台数据（获取真实用量）
   const syncPlatformData = async (targetPlatform: string) => {
     setSyncing(targetPlatform);
-    showToast(targetPlatform === 'all' ? t('apiKeys.syncingAll') : t('apiKeys.syncingPlatform', { platform: AI_PLATFORMS[targetPlatform as PlatformKey]?.name || targetPlatform }), 'info');
+    // 不显示 Toast，改为在 icon 左侧显示"同步中"文字
     
     try {
       const accounts = await getLLMPlatformAccounts();
@@ -647,8 +763,25 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           const adminKey = openaiAccount.admin_api_key_encrypted;
           const messages: string[] = [];
           
-          // 1. 同步用量数据
-          const usageResult = await fetchOpenAIUsageDirect(adminKey);
+          // 1. 同步 Keys 列表（先获取所有 projects 的 keys）
+          const keysResult = await syncOpenAIKeys(openaiAccount.id);
+          if (keysResult.success) {
+            const keyCount = keysResult.keys?.length || 0;
+            const savedCount = (keysResult as any).saved_count || 0;
+            if (savedCount > 0) {
+              messages.push(`同步 ${keyCount} 个 Keys（新增/更新 ${savedCount} 个）`);
+            } else if (keyCount > 0) {
+              messages.push(`${keyCount} 个 Keys（已存在）`);
+            } else {
+              console.warn('OpenAI Keys 同步完成，但没有找到 keys');
+            }
+          } else {
+            console.error('OpenAI Keys 同步失败:', keysResult.error);
+            showToast(`Keys 同步失败: ${keysResult.error}`, 'error');
+          }
+          
+          // 2. 同步用量数据
+          const usageResult = await fetchOpenAIUsageDirect(adminKey, openaiAccount.id);
           if (usageResult.success) {
             setUsageData({
               today_tokens: usageResult.today_tokens,
@@ -659,7 +792,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             messages.push(`本月 ${formatNumber(usageResult.month_tokens)} tokens`);
           }
           
-          // 2. 同步费用数据
+          // 3. 同步费用数据
           const costsResult = await syncOpenAICosts(adminKey, openaiAccount.id);
           if (costsResult.success && costsResult.summary) {
             const monthCost = parseFloat(costsResult.summary.month_cost_usd || '0');
@@ -683,37 +816,76 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       
       // Claude (Anthropic) 同步 - Keys 列表 + 用量数据 + 费用数据
       if (targetPlatform === 'anthropic' || targetPlatform === 'all') {
+        console.log('[手动同步] 开始同步 Claude，查找账号...');
         const claudeAccount = accounts.find(a => a.platform === 'anthropic' && a.status === 'active');
+        console.log('[手动同步] Claude 账号:', claudeAccount ? { id: claudeAccount.id, hasKey: !!claudeAccount.admin_api_key_encrypted } : '未找到');
         
         if (claudeAccount?.admin_api_key_encrypted) {
           const adminKey = claudeAccount.admin_api_key_encrypted;
           const messages: string[] = [];
           
+          console.log('[手动同步] Claude - 步骤1: 同步 Keys 列表');
           // 1. 获取并保存 Keys 列表
-          const keysResult = await listClaudeKeys(adminKey);
+          const keysResult = await listClaudeKeys(adminKey, { platform_account_id: claudeAccount.id });
+          console.log('[手动同步] Claude Keys 同步结果:', { 
+            success: keysResult.success, 
+            total: keysResult.total, 
+            saved_count: keysResult.saved_count,
+            keys_count: keysResult.keys?.length,
+            error: keysResult.error 
+          });
+          
           if (keysResult.success) {
             const keyCount = keysResult.total || (keysResult.keys?.length || 0);
-            messages.push(`${keyCount} 个 Keys`);
+            const savedCount = keysResult.saved_count || 0;
+            if (savedCount > 0) {
+              messages.push(`同步 ${keyCount} 个 Keys（新增/更新 ${savedCount} 个）`);
+            } else if (keyCount > 0) {
+              messages.push(`${keyCount} 个 Keys（已存在）`);
+            } else {
+              console.warn('[手动同步] Claude Keys 同步完成，但没有找到 keys');
+            }
           } else {
-            console.error('Claude Keys 同步失败:', keysResult.error);
+            console.error('[手动同步] Claude Keys 同步失败:', keysResult.error);
+            showToast(`Keys 同步失败: ${keysResult.error}`, 'error');
           }
           
-          // 2. 同步每月用量数据
-          const monthResult = await syncClaudeUsage(adminKey, { range: 'month' });
+          console.log('[手动同步] Claude - 步骤2: 同步月度用量数据');
+          // 2. 同步每月用量数据（会自动同步缺失的 keys）
+          const monthResult = await syncClaudeUsage(adminKey, { range: 'month', platform_account_id: claudeAccount.id });
+          console.log('[手动同步] Claude 月度用量同步结果:', { 
+            success: monthResult.success, 
+            error: monthResult.error,
+            summary: monthResult.summary 
+          });
+          
           if (monthResult.success && monthResult.summary) {
             const totalTokens = monthResult.summary.total_tokens || 0;
             messages.push(`本月 ${formatNumber(totalTokens)} tokens`);
           } else {
-            console.error('Claude 每月用量同步失败:', monthResult.error);
+            console.error('[手动同步] Claude 每月用量同步失败:', monthResult.error);
+            if (monthResult.error) {
+              showToast(`Claude 月度用量同步失败: ${monthResult.error}`, 'error');
+            }
           }
           
+          console.log('[手动同步] Claude - 步骤3: 同步今日用量数据');
           // 3. 同步今日用量数据
-          const todayResult = await syncClaudeUsage(adminKey, { range: 'today' });
+          const todayResult = await syncClaudeUsage(adminKey, { range: 'today', platform_account_id: claudeAccount.id });
+          console.log('[手动同步] Claude 今日用量同步结果:', { 
+            success: todayResult.success, 
+            error: todayResult.error,
+            summary: todayResult.summary 
+          });
+          
           if (todayResult.success && todayResult.summary) {
             const todayTokens = todayResult.summary.total_tokens || 0;
             messages.push(`今日 ${formatNumber(todayTokens)} tokens`);
           } else {
-            console.error('Claude 今日用量同步失败:', todayResult.error);
+            console.error('[手动同步] Claude 今日用量同步失败:', todayResult.error);
+            if (todayResult.error) {
+              showToast(`Claude 今日用量同步失败: ${todayResult.error}`, 'error');
+            }
           }
           
           // 4. 同步费用数据
@@ -738,7 +910,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         }
       }
       
-      // OpenRouter 同步 - Keys 列表 + 余额
+      // OpenRouter 同步 - Keys 列表 + 用量 + 余额
       if (targetPlatform === 'openrouter' || targetPlatform === 'all') {
         const openrouterAccount = accounts.find(a => a.platform === 'openrouter' && a.status === 'active');
         
@@ -746,13 +918,29 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           const adminKey = openrouterAccount.admin_api_key_encrypted;
           const messages: string[] = [];
           
-          // 1. 获取 Keys 列表和用量
+          // 1. 同步 Keys 列表和用量数据
           const keysResult = await syncOpenRouterKeys(adminKey, openrouterAccount.id);
           if (keysResult.success) {
             const keyCount = keysResult.keys_count || 0;
-            messages.push(`${keyCount} 个 Keys`);
+            const createdCount = keysResult.created_count || 0;
+            const updatedCount = keysResult.updated_count || 0;
+            
+            if (createdCount > 0 || updatedCount > 0) {
+              messages.push(`同步 ${keyCount} 个 Keys（新增 ${createdCount} 个，更新 ${updatedCount} 个）`);
+            } else if (keyCount > 0) {
+              messages.push(`${keyCount} 个 Keys（已存在）`);
+            }
+            
+            // 用量统计
+            if (keysResult.stats) {
+              const monthlyUsage = keysResult.stats.monthly_usage || 0;
+              if (monthlyUsage > 0) {
+                messages.push(`本月消费 $${monthlyUsage.toFixed(2)}`);
+              }
+            }
           } else {
             console.error('OpenRouter Keys 同步失败:', keysResult.error);
+            showToast(`OpenRouter 同步失败: ${keysResult.error}`, 'error');
           }
           
           // 2. 获取余额并保存到数据库
@@ -764,6 +952,9 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             await updatePlatformAccountBalance(openrouterAccount.id, remaining);
           } else {
             console.error('OpenRouter 余额获取失败:', creditsResult.error);
+            if (creditsResult.error) {
+              showToast(`OpenRouter 余额获取失败: ${creditsResult.error}`, 'error');
+            }
           }
           
           await loadData();
@@ -771,25 +962,58 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           if (messages.length > 0) {
             showToast(`OpenRouter 同步完成！${messages.join('，')}`, 'success');
           } else {
-            showToast(t('apiKeys.syncFailed', { platform: 'OpenRouter' }), 'error');
+            showToast(`OpenRouter 同步完成`, 'success');
           }
         } else if (targetPlatform === 'openrouter') {
           showToast(t('apiKeys.noAdminKey', { platform: 'OpenRouter' }), 'error');
         }
       }
       
-      // 火山引擎同步 - 余额和用量
+      // 火山引擎同步 - Keys 列表 + 余额和用量
       if (targetPlatform === 'volcengine' || targetPlatform === 'all') {
         const volcengineAccount = accounts.find(a => a.platform === 'volcengine' && a.status === 'active');
         
         if (volcengineAccount?.admin_api_key_encrypted) {
-          // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key"
-          const parts = volcengineAccount.admin_api_key_encrypted.split(':');
+          // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key_base64"
+          // AK 部分是明文，SK 部分是 Base64 编码的
+          const adminKeyValue = volcengineAccount.admin_api_key_encrypted;
+          const parts = adminKeyValue.split(':');
           
-          if (parts.length === 2) {
-            const [accessKeyId, secretAccessKey] = parts;
+          if (parts.length >= 2) {
+            const accessKeyId = parts[0];
+            const secretAccessKeyBase64 = parts.slice(1).join(':'); // 如果 SK 中包含冒号，重新组合
+            
+            // 解码 SK（Base64）
+            let secretAccessKey: string;
+            try {
+              secretAccessKey = atob(secretAccessKeyBase64);
+            } catch (e) {
+              showToast('SecretAccessKey Base64 解码失败: ' + (e instanceof Error ? e.message : String(e)), 'error');
+              setSyncing(null);
+              return;
+            }
             const messages: string[] = [];
             
+            // 1. 同步 Keys 列表
+            const keysResult = await syncVolcengineKeys(volcengineAccount.id);
+            if (keysResult.success) {
+              const keyCount = keysResult.keys_count || 0;
+              const createdCount = keysResult.created_count || 0;
+              const updatedCount = keysResult.updated_count || 0;
+              
+              if (createdCount > 0 || updatedCount > 0) {
+                messages.push(`同步 ${keyCount} 个 Keys（新增 ${createdCount} 个，更新 ${updatedCount} 个）`);
+              } else if (keyCount > 0) {
+                messages.push(`${keyCount} 个 Keys（已存在）`);
+              }
+            } else {
+              console.error('火山引擎 Keys 同步失败:', keysResult.error);
+              if (keysResult.error) {
+                showToast(`Keys 同步失败: ${keysResult.error}`, 'error');
+              }
+            }
+            
+            // 2. 同步余额和用量数据
             const result = await syncVolcengineData({
               access_key_id: accessKeyId,
               secret_access_key: secretAccessKey,
@@ -805,25 +1029,38 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               if (result.usage) {
                 messages.push(`本月 ${formatNumber(result.usage.total_tokens)} tokens`);
               }
-              if (result.keys_count) {
-                messages.push(`${result.keys_count} 个 Keys`);
-              }
               
-              await loadData();
-              
-              if (messages.length > 0) {
-                showToast(`火山引擎同步完成！${messages.join('，')}`, 'success');
+              // 更新平台账号余额
+              if (result.balance) {
+                console.log('[volcengine/sync] 准备更新平台账号余额:', {
+                  account_id: volcengineAccount.id,
+                  available_balance: result.balance.available_balance,
+                  balance_object: result.balance
+                });
+                const updateResult = await updatePlatformAccountBalance(volcengineAccount.id, result.balance.available_balance);
+                console.log('[volcengine/sync] 平台账号余额更新结果:', updateResult);
               } else {
-                showToast('火山引擎同步完成', 'success');
+                console.log('[volcengine/sync] 没有余额数据，跳过更新');
               }
             } else {
-              showToast(`火山引擎同步失败: ${result.error}`, 'error');
+              console.error('火山引擎数据同步失败:', result.error);
+              if (result.error) {
+                showToast(`数据同步失败: ${result.error}`, 'error');
+              }
+            }
+            
+            await loadData();
+            
+            if (messages.length > 0) {
+              showToast(`火山引擎同步完成！${messages.join('，')}`, 'success');
+            } else {
+              showToast('火山引擎同步完成', 'success');
             }
           } else {
             showToast('火山引擎 Admin Key 格式错误，应为 "AK:SK" 格式', 'error');
           }
         } else if (targetPlatform === 'volcengine') {
-          showToast('未找到火山引擎 Admin Key，请先配置平台账号', 'error');
+          showToast(t('apiKeys.noAdminKey', { platform: '火山引擎' }), 'error');
         }
       }
       
@@ -984,12 +1221,22 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   const openOwnerModal = (key: ApiKeyItem) => {
     setOwnerTarget(key);
     setKeyDescription(key.description || '');  // 加载当前密钥的备注
-    // 加载现有联系人信息到表单
-    setOwnerContactForm({
-      name: key.ownerName || '',
-      phone: key.ownerPhone || '',
-      email: key.ownerEmail || ''
-    });
+    
+    // 如果已有责任人，尝试找到对应的团队成员 ID
+    // 优先通过 user_id 关联查找，如果没有则通过邮箱匹配
+    let matchedMemberId = '';
+    if (key.owner?.id) {
+      const member = teamMembers.find(m => m.user_id === key.owner.id);
+      if (member) {
+        matchedMemberId = member.id;
+      }
+    } else if (key.ownerEmail) {
+      const member = teamMembers.find(m => m.email === key.ownerEmail);
+      if (member) {
+        matchedMemberId = member.id;
+      }
+    }
+    setSelectedOwnerId(matchedMemberId);
     setShowOwnerModal(true);
   };
 
@@ -1101,7 +1348,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         return;
       }
       
-      const result = await getOpenAIProjects(openaiAccount.admin_api_key_encrypted);
+      const result = await getOpenAIProjects(openaiAccount.admin_api_key_encrypted, openaiAccount.id);
       if (result.success && result.projects) {
         setOpenaiProjects(result.projects);
         // 默认选择第一个项目
@@ -1290,103 +1537,37 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
 
   return (
     <div className="space-y-5 animate-in">
-      {/* Toast */}
+      {/* Toast 提示框 - 友好的提示框 */}
       {toast && (
-        <div className={`toast ${toast.type}`}>
-          <Icon icon={toast.type === 'success' ? 'mdi:check-circle' : toast.type === 'error' ? 'mdi:close-circle' : 'mdi:information'} width={20} />
-          {toast.message}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-2">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm min-w-[300px] max-w-[500px] ${
+            toast.type === 'success' 
+              ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' 
+              : toast.type === 'error'
+              ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+              : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
+          }`}>
+            <Icon 
+              icon={toast.type === 'success' ? 'mdi:check-circle' : toast.type === 'error' ? 'mdi:close-circle' : 'mdi:information'} 
+              width={20} 
+              className="flex-shrink-0"
+            />
+            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 p-1 rounded hover:bg-black/10 transition-colors"
+            >
+              <Icon icon="mdi:close" width={16} />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* 统计卡片 - 根据选中平台显示不同样式 */}
+      {/* 统计卡片 - 顺序：Monthly Usage、Monthly Tokens、Total Keys、Active Keys、Total Balance */}
       <div className="grid grid-cols-5 gap-4">
-        {/* 平台标识卡片 */}
+        {/* 1. 本月消费卡片（带刷新按钮） */}
         <div 
           className="stat-card relative overflow-hidden"
-          style={currentPlatformConfig ? { 
-            background: `linear-gradient(135deg, ${currentPlatformConfig.color}15 0%, ${currentPlatformConfig.color}05 100%)`,
-            borderColor: `${currentPlatformConfig.color}30`,
-          } : {}}
-        >
-          <div className="flex items-center gap-3">
-            <div 
-              className={`stat-icon ${currentPlatformConfig ? currentPlatformConfig.bgColor : 'bg-blue-100'}`}
-              style={currentPlatformConfig ? { boxShadow: `0 4px 12px ${currentPlatformConfig.color}40` } : {}}
-            >
-              <Icon 
-                icon={currentPlatformConfig?.icon || 'mdi:key-variant'} 
-                width={22} 
-                className={currentPlatformConfig ? 'text-white' : 'text-blue-600'} 
-              />
-            </div>
-            <div>
-              <div className="stat-value">{stats.total}</div>
-              <div className="stat-label">
-                {currentPlatformConfig ? t('apiKeys.platformKeys', { platform: currentPlatformConfig.name }) : t('apiKeys.totalKeysCount')}
-              </div>
-            </div>
-          </div>
-          {/* 同步按钮 */}
-          <button
-            className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-black/5 transition-colors"
-            onClick={() => syncPlatformData(platformFilter)}
-            disabled={syncing !== null || autoSyncing}
-            title={autoSyncing ? '自动同步中...' : `同步${currentPlatformConfig?.name || '所有'}数据`}
-          >
-            <Icon 
-              icon="mdi:sync" 
-              width={16} 
-              className={`${(syncing === platformFilter || autoSyncing) ? 'animate-spin' : ''} ${currentPlatformConfig ? 'text-gray-600' : 'text-gray-400'}`} 
-            />
-          </button>
-          {/* 自动同步提示 */}
-          {autoSyncing && (
-            <div className="absolute bottom-1 right-1 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-              自动同步中
-            </div>
-          )}
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="stat-icon bg-green-100">
-              <Icon icon="mdi:check-circle-outline" width={20} className="text-green-600" />
-            </div>
-            <div>
-              <div className="stat-value">{stats.active}</div>
-              <div className="stat-label">{t('apiKeys.normalUsage')}</div>
-            </div>
-          </div>
-        </div>
-
-        <div 
-          className="stat-card"
-          style={currentPlatformConfig ? { 
-            background: `linear-gradient(135deg, ${currentPlatformConfig.color}08 0%, transparent 100%)`,
-          } : {}}
-        >
-          <div className="flex items-center gap-3">
-            <div 
-              className="stat-icon"
-              style={currentPlatformConfig ? { 
-                backgroundColor: `${currentPlatformConfig.color}20`,
-              } : { backgroundColor: 'rgb(243 232 255)' }}
-            >
-              <Icon 
-                icon="mdi:wallet-outline" 
-                width={20} 
-                style={currentPlatformConfig ? { color: currentPlatformConfig.color } : { color: 'rgb(147 51 234)' }}
-              />
-            </div>
-            <div>
-              <div className="stat-value">{formatCurrency(stats.totalBalance)}</div>
-              <div className="stat-label">{t('apiKeys.accountBalance')}</div>
-            </div>
-          </div>
-        </div>
-
-        <div 
-          className="stat-card"
           style={currentPlatformConfig ? { 
             background: `linear-gradient(135deg, ${currentPlatformConfig.color}08 0%, transparent 100%)`,
           } : {}}
@@ -1404,13 +1585,35 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 style={currentPlatformConfig ? { color: currentPlatformConfig.color } : { color: 'rgb(234 88 12)' }}
               />
             </div>
-            <div>
-              <div className="stat-value">{formatCurrency(stats.monthlyUsage)}</div>
+            <div className="flex-1">
+              <div className="stat-value">{formatCurrency(stats.monthlyUsage, platformFilter === 'all' ? undefined : platformFilter)}</div>
               <div className="stat-label">{t('apiKeys.monthlySpend')}</div>
             </div>
           </div>
+          {/* 刷新按钮和状态 */}
+          <div className="absolute top-2 right-2 flex items-center gap-2">
+            {/* 同步中文字提示 - 显示在 icon 左侧 */}
+            {(syncing === platformFilter || autoSyncing) && (
+              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
+                {t('apiKeys.syncing')}
+              </span>
+            )}
+            <button
+              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+              onClick={() => syncPlatformData(platformFilter)}
+              disabled={syncing !== null || autoSyncing}
+              title={autoSyncing ? t('apiKeys.syncing') : `${t('common.syncData')} ${currentPlatformConfig?.name || t('common.all')}`}
+            >
+              <Icon 
+                icon="mdi:sync" 
+                width={16} 
+                className={`${(syncing === platformFilter || autoSyncing) ? 'animate-spin' : ''} ${currentPlatformConfig ? 'text-gray-600' : 'text-gray-400'}`} 
+              />
+            </button>
+          </div>
         </div>
 
+        {/* 2. 本月 Tokens 卡片 */}
         <div 
           className="stat-card"
           style={currentPlatformConfig ? { 
@@ -1436,6 +1639,74 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             </div>
           </div>
         </div>
+
+        {/* 3. 平台标识卡片 */}
+        <div 
+          className="stat-card relative overflow-hidden"
+          style={currentPlatformConfig ? { 
+            background: `linear-gradient(135deg, ${currentPlatformConfig.color}15 0%, ${currentPlatformConfig.color}05 100%)`,
+            borderColor: `${currentPlatformConfig.color}30`,
+          } : {}}
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className={`stat-icon ${currentPlatformConfig ? currentPlatformConfig.bgColor : 'bg-blue-100'}`}
+              style={currentPlatformConfig ? { boxShadow: `0 4px 12px ${currentPlatformConfig.color}40` } : {}}
+            >
+              <Icon 
+                icon={currentPlatformConfig?.icon || 'mdi:key-variant'} 
+                width={22} 
+                className={currentPlatformConfig ? 'text-white' : 'text-blue-600'} 
+              />
+            </div>
+            <div>
+              <div className="stat-value">{stats.total}</div>
+              <div className="stat-label">
+                {currentPlatformConfig ? t('apiKeys.platformKeys', { platform: currentPlatformConfig.name }) : t('apiKeys.totalKeysCount')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. 正常使用卡片 */}
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <div className="stat-icon bg-green-100">
+              <Icon icon="mdi:check-circle-outline" width={20} className="text-green-600" />
+            </div>
+            <div>
+              <div className="stat-value">{stats.active}</div>
+              <div className="stat-label">{t('apiKeys.normalUsage')}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. 账户余额卡片（最后） */}
+        <div 
+          className="stat-card relative overflow-hidden"
+          style={currentPlatformConfig ? { 
+            background: `linear-gradient(135deg, ${currentPlatformConfig.color}08 0%, transparent 100%)`,
+          } : {}}
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className="stat-icon"
+              style={currentPlatformConfig ? { 
+                backgroundColor: `${currentPlatformConfig.color}20`,
+              } : { backgroundColor: 'rgb(243 232 255)' }}
+            >
+              <Icon 
+                icon="mdi:wallet-outline" 
+                width={20} 
+                style={currentPlatformConfig ? { color: currentPlatformConfig.color } : { color: 'rgb(147 51 234)' }}
+              />
+            </div>
+            <div>
+              <div className="stat-value">{formatCurrency(stats.totalBalance, platformFilter === 'all' ? undefined : platformFilter)}</div>
+              <div className="stat-label">{t('apiKeys.accountBalance')}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 操作栏 */}
@@ -1443,6 +1714,21 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         <div className="card-header">
           <div className="flex items-center gap-4">
             <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t('apiKeys.keyList')}</h2>
+            {/* 刷新按钮 - 显示在标题左侧 */}
+            <button
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={() => {
+                loadData();
+                showToast('数据已刷新', 'success');
+              }}
+              title="刷新数据"
+            >
+              <Icon 
+                icon="mdi:refresh" 
+                width={18} 
+                className={isLoading ? 'animate-spin' : ''}
+              />
+            </button>
             {/* 搜索 */}
             <div className="relative flex items-center">
               <input
@@ -1495,8 +1781,51 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 <th>{t('apiKeys.namePlatform')}</th>
                 <th>{t('apiKeys.apiKeyLabel')}</th>
                 <th>{t('apiKeys.status')}</th>
-                <th>{t('apiKeys.balanceUsage')}</th>
-                <th>{t('apiKeys.tokensUsage')}</th>
+                <th 
+                  className="cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                  onClick={() => handleSort('balance')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>{t('apiKeys.balanceUsage')}</span>
+                    {sortField === 'balance' ? (
+                      <Icon 
+                        icon={sortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'} 
+                        width={16} 
+                        className="text-blue-600 dark:text-blue-400"
+                      />
+                    ) : (
+                      <Icon 
+                        icon="mdi:unfold-more-horizontal" 
+                        width={16} 
+                        className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    )}
+                  </div>
+                </th>
+                {/* Tokens Usage 列 - OpenRouter 平台不显示 */}
+                {platformFilter !== 'openrouter' && (
+                  <th 
+                    className="cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                    onClick={() => handleSort('tokens')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{t('apiKeys.tokensUsage')}</span>
+                      {sortField === 'tokens' ? (
+                        <Icon 
+                          icon={sortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'} 
+                          width={16} 
+                          className="text-blue-600 dark:text-blue-400"
+                        />
+                      ) : (
+                        <Icon 
+                          icon="mdi:unfold-more-horizontal" 
+                          width={16} 
+                          className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        />
+                      )}
+                    </div>
+                  </th>
+                )}
                 <th>{t('apiKeys.owner')}</th>
                 <th>{t('apiKeys.business')}</th>
                 <th>{t('apiKeys.expiresAt')}</th>
@@ -1565,23 +1894,30 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                     <td>
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(key.balance)}
+                          {formatCurrency(key.balance, key.platform)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {t('apiKeys.thisMonth')} {formatCurrency(key.monthlyUsage)}
+                          {t('apiKeys.thisMonth')} {formatCurrency(key.monthlyUsage, key.platform)}
                         </div>
                       </div>
                     </td>
-                    <td>
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-gray-900">
-                          {t('apiKeys.thisMonth')} {formatNumber(key.tokenUsage.monthly)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {t('apiKeys.today')} {formatNumber(key.tokenUsage.daily)}
-                        </div>
-                      </div>
-                    </td>
+                    {/* Tokens Usage 列 - OpenRouter 平台不显示 */}
+                    {platformFilter !== 'openrouter' && (
+                      <td>
+                        {key.platform !== 'openrouter' ? (
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {t('apiKeys.thisMonth')} {formatNumber(key.tokenUsage.monthly)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {t('apiKeys.today')} {formatNumber(key.tokenUsage.daily)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-400">-</div>
+                        )}
+                      </td>
+                    )}
                     <td>
                       <div className="flex items-center gap-2 group">
                         {key.ownerName ? (
@@ -1852,11 +2188,11 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl p-4">
                     <div className="text-sm text-purple-600 dark:text-purple-400 mb-1">{t('apiKeys.accountBalance')}</div>
-                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatCurrency(selectedKey.balance)}</div>
+                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatCurrency(selectedKey.balance, selectedKey.platform)}</div>
                   </div>
                   <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 rounded-xl p-4">
                     <div className="text-sm text-orange-600 dark:text-orange-400 mb-1">{t('apiKeys.monthlySpend')}</div>
-                    <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">{formatCurrency(selectedKey.monthlyUsage)}</div>
+                    <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">{formatCurrency(selectedKey.monthlyUsage, selectedKey.platform)}</div>
                   </div>
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl p-4">
                     <div className="text-sm text-blue-600 dark:text-blue-400 mb-1">{t('apiKeys.monthlyTokens')}</div>
@@ -2588,56 +2924,36 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             
             {/* 表单内容 */}
             <div className="drawer-body space-y-4">
-              {/* 姓名 */}
+              {/* 提示信息 */}
+              <div className="flex items-center gap-2 text-blue-600 text-xs bg-blue-50 px-3 py-2 rounded-lg">
+                <Icon icon="mdi:information-outline" width={16} />
+                <span>请从团队成员中选择责任人。如果成员不存在，请先在"成员管理"页面添加成员。</span>
+              </div>
+              
+              {/* 团队成员选择 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  姓名 <span className="text-red-500">*</span>
+                  选择责任人 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-                  placeholder={t('apiKeys.ownerNamePlaceholder')}
-                  value={ownerContactForm.name}
-                  onChange={e => setOwnerContactForm(prev => ({ ...prev, name: e.target.value }))}
+                  value={selectedOwnerId}
+                  onChange={e => setSelectedOwnerId(e.target.value)}
                   autoFocus
-                />
+                >
+                  <option value="">-- 请选择团队成员 --</option>
+                  {teamMembers.map(member => (
+                    <option key={member.id} value={member.id}>
+                      {member.name || member.email} {member.status === 'invited' && '(待接受邀请)'}
+                    </option>
+                  ))}
+                </select>
+                {teamMembers.length === 0 && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    暂无团队成员，请先前往 <a href="/members" className="text-blue-500 hover:underline">成员管理</a> 添加成员。
+                  </div>
+                )}
               </div>
-              
-              {/* 手机号 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  手机号 <span className="text-gray-400 text-xs font-normal">（手机号和邮箱至少填一项）</span>
-                </label>
-                <input
-                  type="tel"
-                  className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-                  placeholder={t('apiKeys.ownerPhonePlaceholder')}
-                  value={ownerContactForm.phone}
-                  onChange={e => setOwnerContactForm(prev => ({ ...prev, phone: e.target.value }))}
-                />
-              </div>
-              
-              {/* 邮箱 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  邮箱 <span className="text-gray-400 text-xs font-normal">（手机号和邮箱至少填一项）</span>
-                </label>
-                <input
-                  type="email"
-                  className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-                  placeholder={t('apiKeys.ownerEmailPlaceholder')}
-                  value={ownerContactForm.email}
-                  onChange={e => setOwnerContactForm(prev => ({ ...prev, email: e.target.value }))}
-                />
-              </div>
-              
-              {/* 验证提示 */}
-              {ownerContactForm.name && !ownerContactForm.phone && !ownerContactForm.email && (
-                <div className="flex items-center gap-2 text-amber-600 text-xs bg-amber-50 px-3 py-2 rounded-lg">
-                  <Icon icon="mdi:alert-circle-outline" width={16} />
-                  <span>手机号和邮箱至少需要填写一项</span>
-                </div>
-              )}
             </div>
             
             {/* 底部按钮 */}
@@ -2648,23 +2964,23 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 onClick={async () => {
                   setSavingOwner(true);
                   try {
-                    const result = await clearLLMApiKeyOwnerContact(ownerTarget.id);
-                    if (result.success) {
+                    // 清除关联的责任人
+                    const result1 = await updateLLMApiKeyOwner(ownerTarget.id, null);
+                    // 清除联系人信息
+                    const result2 = await clearLLMApiKeyOwnerContact(ownerTarget.id);
+                    
+                    if (result1.success && result2.success) {
                       showToast('已清除责任人信息', 'success');
-                      setApiKeys(prev => prev.map(k => 
-                        k.id === ownerTarget.id 
-                          ? { ...k, ownerName: undefined, ownerPhone: undefined, ownerEmail: undefined }
-                          : k
-                      ));
+                      await loadData(); // 重新加载数据
                       setShowOwnerModal(false);
                     } else {
-                      showToast(result.error || '清除失败', 'error');
+                      showToast(result1.error || result2.error || '清除失败', 'error');
                     }
                   } finally {
                     setSavingOwner(false);
                   }
                 }}
-                disabled={savingOwner || (!ownerTarget.ownerName && !ownerTarget.ownerPhone && !ownerTarget.ownerEmail)}
+                disabled={savingOwner || (!ownerTarget.owner && !ownerTarget.ownerName)}
               >
                 清除责任人
               </button>
@@ -2678,32 +2994,40 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 </button>
                 <button
                   className={`btn ${
-                    ownerContactForm.name && (ownerContactForm.phone || ownerContactForm.email)
+                    selectedOwnerId
                       ? 'btn-primary'
                       : 'btn-secondary opacity-50 cursor-not-allowed'
                   }`}
                   onClick={async () => {
-                    if (!ownerContactForm.name || (!ownerContactForm.phone && !ownerContactForm.email)) return;
+                    if (!selectedOwnerId) return;
+                    
+                    const selectedMember = teamMembers.find(m => m.id === selectedOwnerId);
+                    if (!selectedMember) {
+                      showToast('未找到选中的团队成员', 'error');
+                      return;
+                    }
                     
                     setSavingOwner(true);
                     try {
-                      const result = await updateLLMApiKeyOwnerContact(ownerTarget.id, {
-                        name: ownerContactForm.name,
-                        phone: ownerContactForm.phone || undefined,
-                        email: ownerContactForm.email || undefined
-                      });
+                      // 使用 updateLLMApiKeyOwner 关联团队成员
+                      const result = await updateLLMApiKeyOwner(
+                        ownerTarget.id,
+                        selectedMember.user_id || null,
+                        `责任人: ${selectedMember.name || selectedMember.email}`
+                      );
+                      
                       if (result.success) {
-                        showToast(`已设置责任人: ${ownerContactForm.name}`, 'success');
-                        setApiKeys(prev => prev.map(k => 
-                          k.id === ownerTarget.id 
-                            ? { 
-                                ...k, 
-                                ownerName: ownerContactForm.name,
-                                ownerPhone: ownerContactForm.phone || undefined,
-                                ownerEmail: ownerContactForm.email || undefined
-                              }
-                            : k
-                        ));
+                        // 同时更新联系人信息（用于显示）
+                        if (selectedMember.user_id) {
+                          await updateLLMApiKeyOwnerContact(ownerTarget.id, {
+                            name: selectedMember.name || selectedMember.email,
+                            email: selectedMember.email,
+                            phone: undefined // 团队成员表中没有手机号字段
+                          });
+                        }
+                        
+                        showToast(`已设置责任人: ${selectedMember.name || selectedMember.email}`, 'success');
+                        await loadData(); // 重新加载数据以更新显示
                         setShowOwnerModal(false);
                       } else {
                         showToast(result.error || '保存失败', 'error');
@@ -2712,7 +3036,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                       setSavingOwner(false);
                     }
                   }}
-                  disabled={savingOwner || !ownerContactForm.name || (!ownerContactForm.phone && !ownerContactForm.email)}
+                  disabled={savingOwner || !selectedOwnerId}
                 >
                   {savingOwner ? (
                     <Icon icon="mdi:loading" width={16} className="animate-spin" />

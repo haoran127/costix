@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
-import { getLLMPlatformAccounts, addLLMPlatformAccount, deleteLLMApiKey } from '../services/api';
+import { getLLMPlatformAccounts, addLLMPlatformAccount, updateLLMPlatformAccount } from '../services/api';
 import type { LLMPlatformAccount } from '../services/api';
 
 const PLATFORMS = {
@@ -56,6 +56,7 @@ export default function PlatformAccounts() {
   const [accounts, setAccounts] = useState<LLMPlatformAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<LLMPlatformAccount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<AccountForm>({
     name: '',
@@ -89,6 +90,7 @@ export default function PlatformAccounts() {
 
   // 打开添加账号模态框
   const handleAddAccount = () => {
+    setEditingAccount(null);
     setForm({
       name: '',
       platform: 'openai',
@@ -97,6 +99,55 @@ export default function PlatformAccounts() {
       project_id: '',
       access_key_id: '',
       secret_access_key: '',
+    });
+    setError(null);
+    setSuccess(null);
+    setIsModalOpen(true);
+  };
+
+  // 打开编辑账号模态框
+  const handleEditAccount = (account: LLMPlatformAccount) => {
+    setEditingAccount(account);
+    // 解析火山引擎的 admin_api_key（格式为 "AK:SK"）
+    let adminApiKey = '';
+    let accessKeyId = '';
+    let secretAccessKey = '';
+    
+    if (account.platform === 'volcengine' && account.admin_api_key_encrypted) {
+      // 火山引擎的 admin_api_key_encrypted 格式为 "access_key_id:secret_access_key_base64"
+      // AK 部分是明文，SK 部分是 Base64 编码的
+      const adminKeyValue = account.admin_api_key_encrypted;
+      const parts = adminKeyValue.split(':');
+      
+      if (parts.length >= 2) {
+        accessKeyId = parts[0];
+        const secretAccessKeyBase64 = parts.slice(1).join(':'); // 如果 SK 中包含冒号，重新组合
+        
+        // 解码 SK（Base64）
+        try {
+          secretAccessKey = atob(secretAccessKeyBase64);
+        } catch (e) {
+          console.error('SecretAccessKey Base64 解码失败:', e);
+          // 解码失败，保持原值（可能是旧格式）
+          secretAccessKey = secretAccessKeyBase64;
+        }
+        
+        adminApiKey = adminKeyValue; // 保持原始格式（AK:SK_base64）
+      } else {
+        adminApiKey = adminKeyValue || '';
+      }
+    } else {
+      adminApiKey = account.admin_api_key_encrypted || '';
+    }
+    
+    setForm({
+      name: account.name,
+      platform: account.platform as PlatformType,
+      admin_api_key: adminApiKey,
+      organization_id: account.organization_id || '',
+      project_id: account.project_id || '',
+      access_key_id: accessKeyId,
+      secret_access_key: secretAccessKey,
     });
     setError(null);
     setSuccess(null);
@@ -118,7 +169,8 @@ export default function PlatformAccounts() {
         setIsSubmitting(false);
         return;
       }
-      if (!form.admin_api_key.trim()) {
+      // 编辑模式下，API Key 可以为空（表示不更新）
+      if (!editingAccount && !form.admin_api_key.trim()) {
         setError(t('platformAccounts.errorAdminApiKeyRequired'));
         setIsSubmitting(false);
         return;
@@ -129,29 +181,58 @@ export default function PlatformAccounts() {
         return;
       }
 
-      // 火山引擎的 admin_api_key 格式为 "AK:SK"
+      // 火山引擎的 admin_api_key 格式为 "AK:SK_base64"（SK 需要 Base64 编码）
       let adminApiKey = form.admin_api_key.trim();
       if (form.platform === 'volcengine') {
-        // 如果用户分别输入了 access_key_id 和 secret_access_key，组合它们
+        // 如果用户分别输入了 access_key_id 和 secret_access_key，组合它们（SK 需要 Base64 编码）
         if (form.access_key_id && form.secret_access_key) {
-          adminApiKey = `${form.access_key_id.trim()}:${form.secret_access_key.trim()}`;
-        } else if (!adminApiKey.includes(':')) {
+          const accessKeyId = form.access_key_id.trim();
+          const secretAccessKey = form.secret_access_key.trim();
+          // 对 SK 进行 Base64 编码
+          const secretAccessKeyBase64 = btoa(secretAccessKey);
+          adminApiKey = `${accessKeyId}:${secretAccessKeyBase64}`;
+        } else if (adminApiKey && !adminApiKey.includes(':')) {
+          // 只有在提供了 API Key 时才验证格式
+          setError('火山引擎 Admin Key 格式应为 "AK:SK"，请使用冒号分隔 AccessKeyId 和 SecretAccessKey');
+          setIsSubmitting(false);
+          return;
+        } else if (!editingAccount && !adminApiKey && !form.access_key_id && !form.secret_access_key) {
+          // 新增模式下必须提供 API Key
           setError('火山引擎 Admin Key 格式应为 "AK:SK"，请使用冒号分隔 AccessKeyId 和 SecretAccessKey');
           setIsSubmitting(false);
           return;
         }
       }
 
-      const result = await addLLMPlatformAccount({
-        name: form.name.trim(),
-        platform: form.platform,
-        admin_api_key: adminApiKey,
-        organization_id: form.organization_id.trim() || undefined,
-        project_id: form.project_id.trim() || undefined,
-      });
+      let result;
+      
+      if (editingAccount) {
+        // 编辑模式：更新账号
+        const updateParams: any = {
+          name: form.name.trim(),
+          organization_id: form.organization_id.trim() || undefined,
+          project_id: form.project_id.trim() || undefined,
+        };
+        
+        // 只有提供了新的 API Key 才更新
+        if (adminApiKey) {
+          updateParams.admin_api_key = adminApiKey;
+        }
+        
+        result = await updateLLMPlatformAccount(editingAccount.id, updateParams);
+      } else {
+        // 新增模式：添加账号
+        result = await addLLMPlatformAccount({
+          name: form.name.trim(),
+          platform: form.platform,
+          admin_api_key: adminApiKey,
+          organization_id: form.organization_id.trim() || undefined,
+          project_id: form.project_id.trim() || undefined,
+        });
+      }
 
       if (result.success) {
-        setSuccess(t('platformAccounts.successMessage'));
+        setSuccess(editingAccount ? t('platformAccounts.updateSuccessMessage') : t('platformAccounts.successMessage'));
         setIsModalOpen(false);
         await loadAccounts();
         // 清空表单
@@ -162,7 +243,10 @@ export default function PlatformAccounts() {
             admin_api_key: '',
             organization_id: '',
             project_id: '',
+            access_key_id: '',
+            secret_access_key: '',
           });
+          setEditingAccount(null);
           setSuccess(null);
         }, 2000);
       } else {
@@ -270,8 +354,16 @@ export default function PlatformAccounts() {
                       {account.status === 'active' ? t('platformAccounts.statusActive') : account.status}
                     </span>
                     <button
+                      onClick={() => handleEditAccount(account)}
+                      className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title={t('common.edit')}
+                    >
+                      <Icon icon="mdi:pencil-outline" width={18} />
+                    </button>
+                    <button
                       onClick={() => handleDelete(account.id)}
                       className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      title={t('common.delete')}
                     >
                       <Icon icon="mdi:delete-outline" width={18} />
                     </button>
@@ -295,8 +387,8 @@ export default function PlatformAccounts() {
                   )}
                   {account.total_balance !== null && (
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <Icon icon="mdi:currency-usd" width={16} />
-                      <span className="text-xs">{t('platformAccounts.balance')}: ${account.total_balance}</span>
+                      <Icon icon={account.platform === 'volcengine' ? 'mdi:currency-cny' : 'mdi:currency-usd'} width={16} />
+                      <span className="text-xs">{t('platformAccounts.balance')}: {account.platform === 'volcengine' ? '¥' : '$'}{account.total_balance.toFixed(2)}</span>
                     </div>
                   )}
                 </div>
@@ -313,10 +405,13 @@ export default function PlatformAccounts() {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {t('platformAccounts.addAccountModal')}
+                  {editingAccount ? t('platformAccounts.editAccountModal') : t('platformAccounts.addAccountModal')}
                 </h2>
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingAccount(null);
+                  }}
                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <Icon icon="mdi:close" width={24} />
@@ -339,7 +434,7 @@ export default function PlatformAccounts() {
                 </div>
               )}
 
-              {/* 平台选择 */}
+              {/* 平台选择（编辑模式下禁用） */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('platformAccounts.platform')} <span className="text-red-500">*</span>
@@ -347,16 +442,18 @@ export default function PlatformAccounts() {
                 <div className="grid grid-cols-3 gap-3">
                   {(Object.keys(PLATFORMS) as PlatformType[]).map((platform) => {
                     const config = PLATFORMS[platform];
+                    const isDisabled = editingAccount !== null;
                     return (
                       <button
                         key={platform}
                         type="button"
-                        onClick={() => setForm({ ...form, platform })}
+                        onClick={() => !isDisabled && setForm({ ...form, platform })}
+                        disabled={isDisabled}
                         className={`p-3 rounded-lg border-2 transition-all ${
                           form.platform === platform
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
+                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <div className={`w-8 h-8 rounded-lg ${config.color} flex items-center justify-center mx-auto mb-2`}>
                           <Icon icon={config.icon} width={20} />
@@ -368,6 +465,11 @@ export default function PlatformAccounts() {
                     );
                   })}
                 </div>
+                {editingAccount && (
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    {t('platformAccounts.platformCannotChange')}
+                  </p>
+                )}
               </div>
 
               {/* 账号名称 */}
@@ -439,9 +541,9 @@ export default function PlatformAccounts() {
                       type={showApiKey ? 'text' : 'password'}
                       value={form.admin_api_key}
                       onChange={(e) => setForm({ ...form, admin_api_key: e.target.value })}
-                      placeholder={t('platformAccounts.adminApiKeyPlaceholder', { platform: platformConfig.name })}
+                      placeholder={editingAccount ? t('platformAccounts.adminApiKeyPlaceholderEdit') : t('platformAccounts.adminApiKeyPlaceholder', { platform: platformConfig.name })}
                       className="w-full px-4 py-2.5 pr-10 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                      required
+                      required={!editingAccount}
                     />
                     <button
                       type="button"
@@ -452,7 +554,7 @@ export default function PlatformAccounts() {
                     </button>
                   </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {t('platformAccounts.adminApiKeyHint')}
+                    {editingAccount ? t('platformAccounts.adminApiKeyHintEdit') : t('platformAccounts.adminApiKeyHint')}
                   </p>
                 </div>
               )}
@@ -515,7 +617,7 @@ export default function PlatformAccounts() {
                   ) : (
                     <>
                       <Icon icon="mdi:check" width={18} />
-                      {t('platformAccounts.saveAndVerify')}
+                      {editingAccount ? t('common.save') : t('platformAccounts.saveAndVerify')}
                     </>
                   )}
                 </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Auth from './pages/Auth';
+import AuthCallback from './pages/AuthCallback';
 import Landing from './pages/Landing';
 import { getCurrentUser, onAuthStateChange, type AuthUser } from './lib/auth';
 
@@ -92,6 +93,12 @@ function App() {
             <Auth onSuccess={handleAuthSuccess} />
           )
         } 
+      />
+      
+      {/* 邮箱验证回调页面 */}
+      <Route 
+        path="/auth/callback" 
+        element={<AuthCallback />} 
       />
       
       {/* 已登录用户访问首页，重定向到仪表盘 */}

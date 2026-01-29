@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getUserFromRequest } from '../_lib/auth';
+import { getUserFromRequest } from '../_lib/auth.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kstwkcdmqzvhzjhnaopw.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
@@ -65,6 +65,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ success: false, error: `获取数据库 Keys 失败: ${dbKeysError.message}` });
     }
 
+    console.log(`[claude/sync-costs] 数据库中有 ${dbKeys?.length || 0} 个 Claude Keys`);
+    if (dbKeys && dbKeys.length > 0) {
+      const withWorkspace = dbKeys.filter(k => k.workspace_id).length;
+      const withoutWorkspace = dbKeys.length - withWorkspace;
+      console.log(`[claude/sync-costs] Keys 统计: 有 workspace_id: ${withWorkspace}, 无 workspace_id: ${withoutWorkspace}`);
+    }
+
     // 2. 获取费用数据（分页）
     const allData: any[] = [];
     let page: string | null = null;
@@ -105,6 +112,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 3. 处理费用数据
+    console.log(`[claude/sync-costs] 收到 ${allData.length} 个费用 buckets`);
+    if (allData.length > 0) {
+      console.log(`[claude/sync-costs] 第一个 bucket 示例:`, {
+        start_time: allData[0].start_time,
+        end_time: allData[0].end_time,
+        results_count: allData[0].results?.length || 0,
+        first_result: allData[0].results?.[0] ? {
+          workspace_id: allData[0].results[0].workspace_id,
+          amount: allData[0].results[0].amount,
+        } : null,
+      });
+    }
+
     const todayStartTime = todayStart.getTime();
     const todayEnd = todayStartTime + 86400000;
     const costsByWorkspace: Record<string, { today_cost: number; month_cost: number; total_cost: number }> = {};
@@ -161,15 +181,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const nowISO = new Date().toISOString();
     const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().split('T')[0];
 
+    console.log(`[claude/sync-costs] 费用统计: 总费用 $${totalCost.toFixed(2)}, 本月 $${monthCost.toFixed(2)}, 今日 $${todayCost.toFixed(2)}`);
+    console.log(`[claude/sync-costs] 有费用的 workspaces: ${Object.keys(costsByWorkspace).length} 个`);
+
     // 处理有费用的 workspaces
     Object.entries(costsByWorkspace).forEach(([workspaceId, costs]) => {
       const wsKeys = keysByWorkspace[workspaceId] || [];
 
       if (wsKeys.length === 0) {
+        console.log(`[claude/sync-costs] Workspace ${workspaceId} 有费用 $${costs.month_cost.toFixed(2)}，但没有匹配的 Keys`);
         unmatchedWorkspaces.push({ workspace_id: workspaceId, cost: costs.month_cost });
         unmatchedCost += costs.month_cost;
         return;
       }
+
+      console.log(`[claude/sync-costs] Workspace ${workspaceId} 有费用 $${costs.month_cost.toFixed(2)}，匹配到 ${wsKeys.length} 个 Keys`);
 
       const perKeyCost = {
         today_cost: costs.today_cost / wsKeys.length,
@@ -258,21 +284,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    // 5. 保存费用数据到数据库（使用 UPSERT）
+    // 5. 保存费用数据到数据库（使用 PATCH + INSERT 策略，只更新费用字段，不覆盖 tokens）
     let savedCount = 0;
     const errors: any[] = [];
 
     for (const record of costRecords) {
       try {
-        // 使用 UPSERT（需要数据库有唯一约束）
-        const { error: upsertError } = await supabase
+        // 1. 先检查记录是否存在
+        const { data: checkData, error: checkError } = await supabase
           .from('llm_api_key_usage')
-          .upsert(record, {
-            onConflict: 'api_key_id,period_start',
-          });
+          .select('id')
+          .eq('api_key_id', record.api_key_id)
+          .eq('period_start', record.period_start)
+          .limit(1);
 
-        if (upsertError) throw upsertError;
-        savedCount++;
+        if (checkError) {
+          throw checkError;
+        }
+
+        const recordExists = Array.isArray(checkData) && checkData.length > 0;
+
+        if (recordExists) {
+          // 2. 记录存在，使用 UPDATE 只更新费用字段（不覆盖 tokens）
+          const { error: updateError } = await supabase
+            .from('llm_api_key_usage')
+            .update({
+              total_usage: record.total_usage,
+              monthly_usage: record.monthly_usage,
+              daily_usage: record.daily_usage,
+              synced_at: record.synced_at,
+              sync_status: record.sync_status,
+              raw_response: record.raw_response,
+            })
+            .eq('api_key_id', record.api_key_id)
+            .eq('period_start', record.period_start);
+
+          if (updateError) {
+            throw updateError;
+          }
+          savedCount++;
+        } else {
+          // 3. 记录不存在，使用 INSERT 插入完整记录
+          const { error: insertError } = await supabase
+            .from('llm_api_key_usage')
+            .insert(record);
+
+          if (insertError) {
+            throw insertError;
+          }
+          savedCount++;
+        }
       } catch (err) {
         errors.push({
           api_key_id: record.api_key_id,

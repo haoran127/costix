@@ -1,4 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
+import { getUserFromRequest } from '../_lib/auth.js';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://kstwkcdmqzvhzjhnaopw.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -6,10 +18,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { admin_key } = req.body;
+    // 验证用户身份
+    const userInfo = await getUserFromRequest(req);
+    if (!userInfo) {
+      return res.status(401).json({ success: false, error: '未授权：请提供有效的认证 token' });
+    }
 
-    if (!admin_key) {
-      return res.status(400).json({ success: false, error: '缺少 Admin Key' });
+    const { admin_key, platform_account_id } = req.body;
+
+    let adminKey = admin_key;
+
+    // 如果没有提供 admin_key，从数据库获取
+    if (!adminKey && platform_account_id) {
+      const { data: account, error: accountError } = await supabase
+        .from('llm_platform_accounts')
+        .select('admin_api_key_encrypted, status, platform')
+        .eq('id', platform_account_id)
+        .single();
+
+      if (accountError || !account) {
+        return res.status(400).json({ success: false, error: '未找到平台账号或该账号没有配置 Admin Key' });
+      }
+
+      if (account.status !== 'active') {
+        return res.status(400).json({ success: false, error: `平台账号状态异常: ${account.status}` });
+      }
+
+      if (account.platform !== 'openai') {
+        return res.status(400).json({ success: false, error: '平台类型不匹配，期望 openai' });
+      }
+
+      adminKey = account.admin_api_key_encrypted;
+    }
+
+    if (!adminKey) {
+      return res.status(400).json({ success: false, error: '缺少 Admin Key，请提供 admin_key 或 platform_account_id' });
     }
 
     // 调用 OpenAI API 列出项目
@@ -18,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${admin_key}`,
+          Authorization: `Bearer ${adminKey}`,
           'Content-Type': 'application/json',
         },
       }
