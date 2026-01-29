@@ -282,18 +282,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // 4. 准备要更新的用量记录
+    // 注意：火山引擎API不支持按Key查用量，余额和用量都是账户级别的
+    // 所以每个Key的用量记录应该设为 null 或 0，避免重复计算
     const records = dbKeys.map((key) => ({
       api_key_id: key.id,
-      balance: balance ? balance.available_balance : null,
-      credit_limit: balance ? balance.credit_limit : null,
-      token_usage_total: usage ? usage.total_tokens : null,
-      token_usage_monthly: usage ? usage.total_tokens : null,
-      prompt_tokens_total: usage ? usage.prompt_tokens : null,
-      completion_tokens_total: usage ? usage.completion_tokens : null,
+      balance: null, // 余额是账户级别的，不保存到每个 key
+      credit_limit: null, // 信用额度是账户级别的，不保存到每个 key
+      token_usage_total: null, // 用量是账户级别的，不保存到每个 key
+      token_usage_monthly: null, // 用量是账户级别的，不保存到每个 key
+      prompt_tokens_total: null,
+      completion_tokens_total: null,
       period_start: monthStartStr,
       synced_at: nowISO,
       sync_status: 'success',
-      raw_response: JSON.stringify({ balance, usage }),
+      raw_response: JSON.stringify({ balance, usage }), // 保存原始数据用于调试
     }));
     
     // 调试：打印第一条记录示例
@@ -375,7 +377,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       errors: errors.length > 0 ? errors : undefined
     });
 
-    // 6. 更新同步时间
+    // 6. 更新平台账号的 total_monthly_tokens（火山引擎的用量是账户级别的）
+    if (platform_account_id && usage) {
+      await supabase
+        .from('llm_platform_accounts')
+        .update({ 
+          total_monthly_tokens: usage.total_tokens,
+          updated_at: nowISO 
+        })
+        .eq('id', platform_account_id);
+      
+      console.log('[volcengine/sync-data] 更新平台账号 total_monthly_tokens:', {
+        platform_account_id,
+        total_monthly_tokens: usage.total_tokens
+      });
+    }
+
+    // 7. 更新同步时间
     await supabase
       .from('llm_api_keys')
       .update({ last_synced_at: nowISO })

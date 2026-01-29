@@ -57,6 +57,7 @@ export interface LLMPlatformAccount {
   admin_api_key_prefix?: string;
   balance?: number;
   total_balance?: number | null;
+  total_monthly_tokens?: number | null; // 月度 Token 使用量统计（火山引擎等账户级别用量）
   currency?: string;
   status: 'active' | 'inactive' | 'error';
   last_synced_at?: string;

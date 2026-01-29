@@ -423,7 +423,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(''); // 选中的团队成员 ID
   const [autoSyncing, setAutoSyncing] = useState(false);  // 自动同步状态
-  const [platformAccounts, setPlatformAccounts] = useState<Array<{ id: string; platform: string; total_balance: number | null; status: string }>>([]);  // 平台账号数据
+  const [platformAccounts, setPlatformAccounts] = useState<Array<{ id: string; platform: string; total_balance: number | null; total_monthly_tokens: number | null; status: string }>>([]);  // 平台账号数据
   
   // 编辑业务用途（详情弹窗）
   const [editingBusiness, setEditingBusiness] = useState(false);
@@ -474,9 +474,10 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     const primaryOwner = key.owners?.find(o => o.is_primary);
     
     // 判断平台是否有余额概念
-    // OpenAI 和 Claude 是按使用量付费，没有余额；Volcengine 有余额；OpenRouter 按使用量付费，没有余额
-    const hasBalance = key.platform === 'volcengine';
-    const balance = hasBalance ? (key.balance ?? null) : null; // 无余额的平台设为 null
+    // OpenAI 和 Claude 是按使用量付费，没有余额；Volcengine 有余额（账户级别，不在 key 级别显示）；OpenRouter 按使用量付费，没有余额
+    // 注意：火山引擎的余额和用量都是账户级别的，不在 key 级别显示
+    const hasBalance = false; // 火山引擎的余额不在 key 级别显示
+    const balance = null; // 所有平台的 key 级别余额都设为 null（余额在平台账号级别显示）
     
     return {
       id: key.id,
@@ -544,6 +545,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         id: a.id,
         platform: a.platform,
         total_balance: a.total_balance ?? null,
+        total_monthly_tokens: (a as any).total_monthly_tokens ?? null, // 火山引擎的月度 tokens
         status: a.status
       })));
       
@@ -733,7 +735,28 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     const totalBalance = accountsToCount.reduce((sum, a) => sum + (a.total_balance || 0), 0);
     
     const monthlyUsage = keysToCount.reduce((sum, k) => sum + k.monthlyUsage, 0);
-    const monthlyTokens = keysToCount.reduce((sum, k) => sum + k.tokenUsage.monthly, 0);
+    
+    // 计算 Monthly Tokens
+    // 注意：火山引擎的用量是账户级别的，不应该累加所有 keys（会导致重复计算）
+    // 应该从平台账号的 total_monthly_tokens 获取
+    let monthlyTokens = 0;
+    if (platformFilter === 'volcengine') {
+      // 火山引擎：从平台账号的 total_monthly_tokens 获取
+      const volcengineAccount = platformAccounts.find(a => a.platform === 'volcengine' && a.status === 'active');
+      monthlyTokens = volcengineAccount?.total_monthly_tokens || 0;
+    } else if (platformFilter === 'all') {
+      // 全部平台：累加所有平台的用量，但火山引擎只计算一次
+      const volcengineAccount = platformAccounts.find(a => a.platform === 'volcengine' && a.status === 'active');
+      const volcengineTokens = volcengineAccount?.total_monthly_tokens || 0;
+      const otherPlatformTokens = keysToCount
+        .filter(k => k.platform !== 'volcengine')
+        .reduce((sum, k) => sum + k.tokenUsage.monthly, 0);
+      monthlyTokens = volcengineTokens + otherPlatformTokens;
+    } else {
+      // 其他平台：正常累加所有 keys 的用量
+      monthlyTokens = keysToCount.reduce((sum, k) => sum + k.tokenUsage.monthly, 0);
+    }
+    
     return { total, active, totalBalance, monthlyUsage, monthlyTokens };
   }, [apiKeys, platformFilter, platformAccounts]);
 
