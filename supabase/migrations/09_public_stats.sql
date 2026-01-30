@@ -11,33 +11,54 @@ SECURITY DEFINER
 AS $$
 DECLARE
   -- Launch date: 2024-04-01 (about 10 months ago)
-  launch_time TIMESTAMP := '2024-04-01 00:00:00'::timestamp;
-  days_since_launch NUMERIC;
+  launch_time DATE := '2024-04-01'::date;
+  current_date_val DATE := CURRENT_DATE;
   
   -- Base numbers
   base_developers INTEGER := 50000;
-  base_signups INTEGER := 0;
   
-  -- Growth: 3000 per month = 100 per day
-  daily_growth NUMERIC := 100;
+  -- Loop variables
+  day_cursor DATE;
+  day_seed INTEGER;
+  daily_growth INTEGER;
+  total_signups INTEGER := 0;
   
-  -- Calculated values
-  total_signups INTEGER;
+  -- Results
   total_developers INTEGER;
   monthly_upgrades INTEGER;
   minute_variation INTEGER;
-BEGIN
-  -- Calculate days since launch
-  days_since_launch := EXTRACT(EPOCH FROM (NOW() - launch_time)) / 86400;
   
-  -- Calculate signups (new users since launch)
-  total_signups := FLOOR(days_since_launch * daily_growth);
+  -- Min/max daily growth (1000-3000 per month = 33-100 per day)
+  min_daily INTEGER := 33;
+  max_daily INTEGER := 100;
+BEGIN
+  -- Calculate total signups by summing daily growth with pseudo-random variation
+  day_cursor := launch_time;
+  
+  WHILE day_cursor < current_date_val LOOP
+    -- Generate pseudo-random daily growth based on date (stable for same date)
+    -- Using date parts to create a seed: YYYYMMDD
+    day_seed := (EXTRACT(YEAR FROM day_cursor)::INTEGER * 10000 + 
+                 EXTRACT(MONTH FROM day_cursor)::INTEGER * 100 + 
+                 EXTRACT(DAY FROM day_cursor)::INTEGER);
+    
+    -- Pseudo-random between min_daily and max_daily
+    -- Using modulo to get variation, stable for same day
+    daily_growth := min_daily + (day_seed % (max_daily - min_daily + 1));
+    
+    total_signups := total_signups + daily_growth;
+    day_cursor := day_cursor + INTERVAL '1 day';
+  END LOOP;
+  
+  -- Add partial day growth based on current hour
+  daily_growth := min_daily + ((day_seed + 1) % (max_daily - min_daily + 1));
+  total_signups := total_signups + FLOOR(daily_growth * EXTRACT(HOUR FROM NOW()) / 24);
   
   -- Calculate total developers (base + signups)
   total_developers := base_developers + total_signups;
   
-  -- Monthly upgrades: ~40% of monthly signups upgrade to Pro
-  monthly_upgrades := FLOOR(3000 * 0.4);
+  -- Monthly upgrades: random-ish between 1000-1500 based on current month
+  monthly_upgrades := 1000 + (EXTRACT(MONTH FROM NOW())::INTEGER * 37 % 500);
   
   -- Add small variation based on current minute (stable within same minute)
   minute_variation := (EXTRACT(MINUTE FROM NOW())::INTEGER % 11) - 5;
