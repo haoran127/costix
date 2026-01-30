@@ -350,10 +350,12 @@ export default function Pricing() {
                       isCurrentPlan
                         ? 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-default'
                         : plan.is_popular
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:scale-[1.02]'
+                          ? 'bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 text-white hover:from-orange-600 hover:via-pink-600 hover:to-purple-700 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:scale-[1.02]'
                           : plan.name === 'free' 
                             ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'
-                            : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-slate-600'
+                            : plan.name === 'team'
+                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-500/20 hover:shadow-xl hover:scale-[1.02]'
+                              : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-slate-600'
                     }`}
                     onClick={() => !isCurrentPlan && handleSubscribe(plan)}
                     disabled={isCurrentPlan}

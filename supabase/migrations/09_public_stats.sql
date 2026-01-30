@@ -3,66 +3,53 @@
 -- Returns signup counts for marketing display
 -- ============================================
 
--- Create function to get public stats
+-- Drop and recreate to ensure clean state
+DROP FUNCTION IF EXISTS get_public_stats();
+
 CREATE OR REPLACE FUNCTION get_public_stats()
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  -- Launch date: 2024-04-01 (about 10 months ago)
-  launch_time DATE := '2024-04-01'::date;
-  current_date_val DATE := CURRENT_DATE;
+  -- Launch date: 2024-04-01
+  launch_date DATE := '2024-04-01'::date;
+  days_since_launch INTEGER;
   
   -- Base numbers
   base_developers INTEGER := 50000;
   
-  -- Loop variables
-  day_cursor DATE;
-  day_seed INTEGER;
-  daily_growth INTEGER;
-  total_signups INTEGER := 0;
+  -- Average daily growth: 66 (= ~2000/month)
+  avg_daily_growth INTEGER := 66;
   
   -- Results
+  total_signups INTEGER;
   total_developers INTEGER;
   monthly_upgrades INTEGER;
-  minute_variation INTEGER;
-  
-  -- Min/max daily growth (1000-3000 per month = 33-100 per day)
-  min_daily INTEGER := 33;
-  max_daily INTEGER := 100;
+  day_variation INTEGER;
+  hour_addition INTEGER;
 BEGIN
-  -- Calculate total signups by summing daily growth with pseudo-random variation
-  day_cursor := launch_time;
+  -- Calculate days since launch
+  days_since_launch := CURRENT_DATE - launch_date;
   
-  WHILE day_cursor < current_date_val LOOP
-    -- Generate pseudo-random daily growth based on date (stable for same date)
-    -- Using date parts to create a seed: YYYYMMDD
-    day_seed := (EXTRACT(YEAR FROM day_cursor)::INTEGER * 10000 + 
-                 EXTRACT(MONTH FROM day_cursor)::INTEGER * 100 + 
-                 EXTRACT(DAY FROM day_cursor)::INTEGER);
-    
-    -- Pseudo-random between min_daily and max_daily
-    -- Using modulo to get variation, stable for same day
-    daily_growth := min_daily + (day_seed % (max_daily - min_daily + 1));
-    
-    total_signups := total_signups + daily_growth;
-    day_cursor := day_cursor + INTERVAL '1 day';
-  END LOOP;
+  -- Base signups = days * average daily growth
+  total_signups := days_since_launch * avg_daily_growth;
   
-  -- Add partial day growth based on current hour
-  daily_growth := min_daily + ((day_seed + 1) % (max_daily - min_daily + 1));
-  total_signups := total_signups + FLOOR(daily_growth * EXTRACT(HOUR FROM NOW()) / 24);
+  -- Add pseudo-random daily variation based on date (±10%)
+  -- Using day of year as seed for stable daily variation
+  day_variation := (EXTRACT(DOY FROM CURRENT_DATE)::INTEGER % 21) - 10;
+  day_variation := (total_signups * day_variation) / 100;
+  total_signups := total_signups + day_variation;
   
-  -- Calculate total developers (base + signups)
+  -- Add partial day progress based on current hour
+  hour_addition := (avg_daily_growth * EXTRACT(HOUR FROM NOW())::INTEGER) / 24;
+  total_signups := total_signups + hour_addition;
+  
+  -- Calculate total developers
   total_developers := base_developers + total_signups;
   
-  -- Monthly upgrades: random-ish between 1000-1500 based on current month
-  monthly_upgrades := 1000 + (EXTRACT(MONTH FROM NOW())::INTEGER * 37 % 500);
-  
-  -- Add small variation based on current minute (stable within same minute)
-  minute_variation := (EXTRACT(MINUTE FROM NOW())::INTEGER % 11) - 5;
-  total_signups := total_signups + minute_variation;
+  -- Monthly upgrades: ~40% of monthly signups = ~800
+  monthly_upgrades := 800 + (EXTRACT(DAY FROM CURRENT_DATE)::INTEGER * 13);
   
   RETURN json_build_object(
     'signups', total_signups,

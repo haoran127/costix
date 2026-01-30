@@ -121,16 +121,23 @@ export default function Sidebar({ currentSection, onSectionChange, user, onOpenP
           ))}
         </nav>
         
-        {/* Upgrade CTA */}
+        {/* Upgrade CTA - Hot & Urgent */}
         {isFree && (
           <div className="px-3 pb-2">
             <button
-              className="w-full px-3 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
+              className="group w-full relative overflow-hidden px-3 py-2.5 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 hover:from-orange-600 hover:via-pink-600 hover:to-purple-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
               onClick={() => navigate('/pricing')}
             >
-              <Icon icon="mdi:crown" width={18} />
-              Upgrade to Pro
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              
+              <Icon icon="mdi:crown" width={16} className="text-yellow-300 drop-shadow flex-shrink-0" />
+              <span className="relative">Upgrade</span>
+              <span className="px-1 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] rounded font-bold flex-shrink-0">-17%</span>
             </button>
+            <p className="text-center text-[10px] text-gray-400 mt-1 animate-pulse">
+              🔥 Limited offer
+            </p>
           </div>
         )}
 
