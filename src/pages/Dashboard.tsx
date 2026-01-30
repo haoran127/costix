@@ -7,6 +7,8 @@ import {
   type LLMApiKey,
   type LLMPlatformAccount
 } from '../services/api';
+import { getUsageTrendData, type UsageTrendData } from '../services/charts';
+import UsageChart from '../components/Charts/UsageChart';
 
 interface DashboardProps {
   platform: string;
@@ -41,10 +43,36 @@ export default function Dashboard({ platform }: DashboardProps) {
   const [keys, setKeys] = useState<LLMApiKey[]>([]);
   const [platformAccounts, setPlatformAccounts] = useState<LLMPlatformAccount[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [usageTrendData, setUsageTrendData] = useState<UsageTrendData[]>([]);
+  const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [loadingChart, setLoadingChart] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [platform]);
+
+  // 加载图表数据
+  useEffect(() => {
+    const loadChartData = async () => {
+      setLoadingChart(true);
+      try {
+        const data = await getUsageTrendData({
+          period: chartPeriod,
+          days: chartPeriod === 'day' ? 30 : chartPeriod === 'week' ? 90 : 365,
+          platform: platform === 'all' ? undefined : platform,
+        });
+        setUsageTrendData(data);
+      } catch (error) {
+        console.error('加载图表数据失败:', error);
+      } finally {
+        setLoadingChart(false);
+      }
+    };
+
+    if (dataLoaded) {
+      loadChartData();
+    }
+  }, [platform, chartPeriod, dataLoaded]);
 
   const loadData = async () => {
     try {
@@ -166,6 +194,62 @@ export default function Dashboard({ platform }: DashboardProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 用量趋势图 */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            {t('dashboard.usageTrend')}
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setChartPeriod('day')}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                chartPeriod === 'day'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              {t('dashboard.day')}
+            </button>
+            <button
+              onClick={() => setChartPeriod('week')}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                chartPeriod === 'week'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              {t('dashboard.week')}
+            </button>
+            <button
+              onClick={() => setChartPeriod('month')}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                chartPeriod === 'month'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              {t('dashboard.month')}
+            </button>
+          </div>
+        </div>
+        {loadingChart ? (
+          <div className="flex items-center justify-center h-64">
+            <Icon icon="mdi:loading" width={24} className="text-gray-400 animate-spin" />
+          </div>
+        ) : (
+          <UsageChart 
+            data={usageTrendData.map(item => ({
+              date: item.date,
+              tokens: item.tokens,
+              cost: item.cost,
+            }))}
+            period={chartPeriod}
+            showCost={true}
+          />
+        )}
       </div>
 
       {/* 平台分布 */}

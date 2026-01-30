@@ -6,6 +6,7 @@ import Dashboard from '../../pages/Dashboard';
 import ApiKeys from '../../pages/ApiKeys';
 import TeamMembers from '../../pages/TeamMembers';
 import PlatformAccounts from '../../pages/PlatformAccounts';
+import ActivityLog from '../../pages/ActivityLog';
 import ProfileDrawer from '../ProfileDrawer';
 import SettingsDrawer from '../SettingsDrawer';
 import { getCurrentUser, onAuthStateChange, type AuthUser } from '../../lib/auth';
@@ -30,6 +31,8 @@ export default function Layout() {
       setCurrentSection('members');
     } else if (path.startsWith('/platform-accounts') || path.startsWith('/settings/platform')) {
       setCurrentSection('platform-accounts');
+    } else if (path.startsWith('/activity-log') || path.startsWith('/settings/activity')) {
+      setCurrentSection('activity-log');
     }
   }, [location]);
 
@@ -82,6 +85,8 @@ export default function Layout() {
       navigate('/members');
     } else if (section === 'platform-accounts') {
       navigate('/platform-accounts');
+    } else if (section === 'activity-log') {
+      navigate('/activity-log');
     }
   };
 
@@ -109,6 +114,8 @@ export default function Layout() {
             <Route path="/team" element={<TeamMembers />} />
             <Route path="/platform-accounts" element={<PlatformAccounts />} />
             <Route path="/settings/platform" element={<PlatformAccounts />} />
+            <Route path="/activity-log" element={<ActivityLog />} />
+            <Route path="/settings/activity" element={<ActivityLog />} />
             <Route path="/" element={<Dashboard platform={currentPlatform} />} />
             <Route path="*" element={<Dashboard platform={currentPlatform} />} />
           </Routes>

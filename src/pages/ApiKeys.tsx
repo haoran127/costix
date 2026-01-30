@@ -32,9 +32,13 @@ import {
   deleteVolcengineKey,
   syncVolcengineKeys,
   syncVolcengineData,
+  getAuthHeaders,
   type LLMApiKey,
 } from '../services/api';
 import { getTeamMembers, type TeamMember } from '../services/team';
+import { exportToCSV, exportToExcel, API_KEYS_EXPORT_COLUMNS } from '../utils/export';
+import { useSubscription } from '../hooks/useSubscription';
+import { UpgradeModal, QuotaIndicator } from '../components/Subscription';
 
 // AI 平台配置
 const AI_PLATFORMS = {
@@ -400,6 +404,30 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<'balance' | 'tokens' | null>('balance');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // 订阅状态
+  const { 
+    keyQuota, 
+    checkKeyQuota, 
+    canExport, 
+    canBatchOperation,
+    isFree,
+    planDisplayName 
+  } = useSubscription();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<string>('');
+  
+  // 批量选择状态
+  const [selectedKeyIds, setSelectedKeyIds] = useState<Set<string>>(new Set());
+  const [showBatchOwnerModal, setShowBatchOwnerModal] = useState(false);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchAssigning, setBatchAssigning] = useState(false);
+
+  // 高级筛选状态
+  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+  const [ownerFilter, setOwnerFilter] = useState<string>(''); // 责任人筛选
+  const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string; end: string }>({ start: '', end: '' }); // 时间范围筛选
+  const [tokenRangeFilter, setTokenRangeFilter] = useState<{ min: string; max: string }>({ min: '', max: '' }); // 用量范围筛选
 
   // 同步顶部平台筛选
   useEffect(() => {
@@ -524,6 +552,51 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     setTimeout(() => setToast(null), type === 'error' ? 5000 : 3000);
   }, []);
 
+  // 批量选择：切换单个 Key 的选择状态
+  const toggleKeySelection = useCallback((keyId: string) => {
+    setSelectedKeyIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(keyId)) {
+        newSet.delete(keyId);
+      } else {
+        newSet.add(keyId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // 批量选择：全选/取消全选
+  const toggleSelectAll = useCallback((keys: ApiKeyItem[]) => {
+    setSelectedKeyIds(prev => {
+      if (prev.size === keys.length && keys.every(k => prev.has(k.id))) {
+        return new Set();
+      }
+      return new Set(keys.map(k => k.id));
+    });
+  }, []);
+
+  // 清除选择
+  const clearSelection = useCallback(() => {
+    setSelectedKeyIds(new Set());
+  }, []);
+
+  // 导出选中的 Keys
+  const handleExport = useCallback((format: 'csv' | 'excel') => {
+    const keysToExport = selectedKeyIds.size > 0 
+      ? apiKeys.filter(k => selectedKeyIds.has(k.id))
+      : apiKeys;
+    
+    const filename = `api-keys-${new Date().toISOString().split('T')[0]}`;
+    
+    if (format === 'csv') {
+      exportToCSV(keysToExport, API_KEYS_EXPORT_COLUMNS, filename);
+    } else {
+      exportToExcel(keysToExport, API_KEYS_EXPORT_COLUMNS, filename, 'API Keys');
+    }
+    
+    showToast(`已导出 ${keysToExport.length} 个 API Key`, 'success');
+  }, [apiKeys, selectedKeyIds, showToast]);
+
   // 加载数据
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -561,6 +634,86 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       setIsLoading(false);
     }
   }, [platformFilter, convertToApiKeyItem, showToast]);
+
+  // 批量删除 - 必须在 loadData 之后定义
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedKeyIds.size === 0) return;
+    
+    if (!confirm(`确定要删除选中的 ${selectedKeyIds.size} 个 API Key 吗？此操作不可撤销。`)) {
+      return;
+    }
+    
+    setBatchDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const keyId of selectedKeyIds) {
+      try {
+        const key = apiKeys.find(k => k.id === keyId);
+        if (!key) continue;
+        
+        // 根据平台调用不同的删除接口
+        if (key.platform === 'openrouter' && key.platformKeyId) {
+          await deleteOpenRouterKey(key.platformKeyId, keyId);
+        } else if (key.platform === 'volcengine' && key.platformKeyId) {
+          await deleteVolcengineKey(key.platformKeyId, keyId);
+        } else {
+          await deleteLLMApiKey(keyId);
+        }
+        successCount++;
+      } catch (err) {
+        console.error(`删除 Key ${keyId} 失败:`, err);
+        failCount++;
+      }
+    }
+    
+    setBatchDeleting(false);
+    clearSelection();
+    await loadData();
+    
+    if (failCount === 0) {
+      showToast(`成功删除 ${successCount} 个 API Key`, 'success');
+    } else {
+      showToast(`删除完成：成功 ${successCount} 个，失败 ${failCount} 个`, failCount > 0 ? 'error' : 'success');
+    }
+  }, [selectedKeyIds, apiKeys, clearSelection, loadData, showToast]);
+
+  // 批量分配责任人 - 必须在 loadData 之后定义
+  const handleBatchAssignOwner = useCallback(async (memberId: string) => {
+    if (selectedKeyIds.size === 0) return;
+    
+    const member = teamMembers.find(m => m.id === memberId);
+    if (!member) return;
+    
+    setBatchAssigning(true);
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const keyId of selectedKeyIds) {
+      try {
+        await updateLLMApiKeyOwnerContact(keyId, {
+          owner_name: member.name || '',
+          owner_phone: '',
+          owner_email: member.email || '',
+        });
+        successCount++;
+      } catch (err) {
+        console.error(`分配责任人到 Key ${keyId} 失败:`, err);
+        failCount++;
+      }
+    }
+    
+    setBatchAssigning(false);
+    setShowBatchOwnerModal(false);
+    clearSelection();
+    await loadData();
+    
+    if (failCount === 0) {
+      showToast(`成功为 ${successCount} 个 Key 分配责任人`, 'success');
+    } else {
+      showToast(`分配完成：成功 ${successCount} 个，失败 ${failCount} 个`, failCount > 0 ? 'error' : 'success');
+    }
+  }, [selectedKeyIds, teamMembers, clearSelection, loadData, showToast]);
 
   // 当 platformFilter 改变时，重新加载数据
   useEffect(() => {
@@ -661,8 +814,9 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         const matchName = key.name.toLowerCase().includes(query);
         const matchBusiness = key.business.toLowerCase().includes(query);
         const matchOwner = key.owner?.name.toLowerCase().includes(query);
+        const matchOwnerName = key.ownerName?.toLowerCase().includes(query);
         const matchKey = key.maskedKey.toLowerCase().includes(query);
-        if (!matchName && !matchBusiness && !matchOwner && !matchKey) {
+        if (!matchName && !matchBusiness && !matchOwner && !matchOwnerName && !matchKey) {
           return false;
         }
       }
@@ -673,6 +827,33 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       // 状态过滤
       if (statusFilter !== 'all' && key.status !== statusFilter) {
         return false;
+      }
+      // 责任人筛选
+      if (ownerFilter) {
+        const ownerMatch = key.ownerName?.toLowerCase().includes(ownerFilter.toLowerCase()) ||
+                          key.owner?.name.toLowerCase().includes(ownerFilter.toLowerCase());
+        if (!ownerMatch) {
+          return false;
+        }
+      }
+      // 创建时间范围筛选
+      if (dateRangeFilter.start || dateRangeFilter.end) {
+        const keyDate = new Date(key.createdAt).getTime();
+        if (dateRangeFilter.start && keyDate < new Date(dateRangeFilter.start).getTime()) {
+          return false;
+        }
+        if (dateRangeFilter.end && keyDate > new Date(dateRangeFilter.end + 'T23:59:59').getTime()) {
+          return false;
+        }
+      }
+      // 用量范围筛选 (Monthly Tokens)
+      if (tokenRangeFilter.min || tokenRangeFilter.max) {
+        const monthlyTokens = key.tokenUsage.monthly || 0;
+        const minTokens = tokenRangeFilter.min ? parseInt(tokenRangeFilter.min) * 1000 : 0; // 用户输入的是 K 单位
+        const maxTokens = tokenRangeFilter.max ? parseInt(tokenRangeFilter.max) * 1000 : Infinity;
+        if (monthlyTokens < minTokens || monthlyTokens > maxTokens) {
+          return false;
+        }
       }
       return true;
     });
@@ -704,7 +885,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     }
 
     return filtered;
-  }, [apiKeys, searchQuery, platformFilter, statusFilter, sortField, sortDirection]);
+  }, [apiKeys, searchQuery, platformFilter, statusFilter, ownerFilter, dateRangeFilter, tokenRangeFilter, sortField, sortDirection]);
 
   // 处理排序点击
   const handleSort = (field: 'balance' | 'tokens') => {
@@ -838,13 +1019,24 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             }
           }
           
-          await loadData();
-          
-          if (messages.length > 0) {
-            showToast(`OpenAI 同步完成！${messages.join('，')}`, 'success');
-          } else {
-            showToast(`OpenAI 同步完成`, 'success');
-          }
+            await loadData();
+            
+            // 同步完成后检查告警
+            try {
+              const headers = await getAuthHeaders();
+              await fetch('/api/alerts/check-alerts', {
+                method: 'POST',
+                headers,
+              });
+            } catch (err) {
+              console.warn('告警检查失败:', err);
+            }
+            
+            if (messages.length > 0) {
+              showToast(`OpenAI 同步完成！${messages.join('，')}`, 'success');
+            } else {
+              showToast(`OpenAI 同步完成`, 'success');
+            }
         } else if (targetPlatform === 'openai') {
           showToast(t('apiKeys.noAdminKey', { platform: 'OpenAI' }), 'error');
         }
@@ -934,10 +1126,21 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             }
           }
           
-          await loadData();
-          
-          if (messages.length > 0) {
-            showToast(`Claude 同步完成！${messages.join('，')}`, 'success');
+            await loadData();
+            
+            // 同步完成后检查告警
+            try {
+              const headers = await getAuthHeaders();
+              await fetch('/api/alerts/check-alerts', {
+                method: 'POST',
+                headers,
+              });
+            } catch (err) {
+              console.warn('告警检查失败:', err);
+            }
+            
+            if (messages.length > 0) {
+              showToast(`Claude 同步完成！${messages.join('，')}`, 'success');
           } else {
             showToast(t('apiKeys.syncFailed', { platform: 'Claude' }), 'error');
           }
@@ -1086,6 +1289,17 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             }
             
             await loadData();
+            
+            // 同步完成后检查告警
+            try {
+              const headers = await getAuthHeaders();
+              await fetch('/api/alerts/check-alerts', {
+                method: 'POST',
+                headers,
+              });
+            } catch (err) {
+              console.warn('告警检查失败:', err);
+            }
             
             if (messages.length > 0) {
               showToast(`火山引擎同步完成！${messages.join('，')}`, 'success');
@@ -1796,6 +2010,42 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* 导出按钮 */}
+            <div className="relative group">
+              <button 
+                className="btn btn-secondary whitespace-nowrap relative"
+                title={canExport ? (selectedKeyIds.size > 0 ? `导出选中的 ${selectedKeyIds.size} 个` : '导出全部') : '升级解锁导出功能'}
+                onClick={!canExport ? () => {
+                  setUpgradeFeature('export');
+                  setShowUpgradeModal(true);
+                } : undefined}
+              >
+                <Icon icon="mdi:download" width={18} />
+                导出
+                <Icon icon="mdi:chevron-down" width={16} className="ml-1" />
+                {!canExport && (
+                  <Icon icon="mdi:lock" width={12} className="absolute -top-1 -right-1 text-orange-500" />
+                )}
+              </button>
+              {canExport && (
+                <div className="absolute right-0 top-full mt-1 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                    onClick={() => handleExport('csv')}
+                  >
+                    <Icon icon="mdi:file-delimited" width={16} />
+                    导出 CSV
+                  </button>
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                    onClick={() => handleExport('excel')}
+                  >
+                    <Icon icon="mdi:file-excel" width={16} />
+                    导出 Excel
+                  </button>
+                </div>
+              )}
+            </div>
             {/* 状态筛选 */}
             <select
               value={statusFilter}
@@ -1808,13 +2058,175 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               <option value="low_balance">{t('apiKeys.lowBalance')}</option>
               <option value="expired">已过期</option>
             </select>
+            {/* 高级筛选按钮 */}
+            <button 
+              className={`btn ${showAdvancedFilter || ownerFilter || dateRangeFilter.start || dateRangeFilter.end || tokenRangeFilter.min || tokenRangeFilter.max ? 'btn-primary' : 'btn-secondary'} whitespace-nowrap`}
+              onClick={() => setShowAdvancedFilter(!showAdvancedFilter)}
+            >
+              <Icon icon="mdi:filter-variant" width={18} />
+              高级筛选
+              {(ownerFilter || dateRangeFilter.start || dateRangeFilter.end || tokenRangeFilter.min || tokenRangeFilter.max) && (
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-white/20 rounded-full">!</span>
+              )}
+            </button>
+            {/* Key 配额显示 */}
+            <QuotaIndicator />
             {/* 创建按钮 */}
-            <button className="btn btn-primary whitespace-nowrap" onClick={() => setIsCreateOpen(true)}>
+            <button 
+              className="btn btn-primary whitespace-nowrap relative" 
+              onClick={() => {
+                if (keyQuota && !keyQuota.allowed) {
+                  setUpgradeFeature('more_keys');
+                  setShowUpgradeModal(true);
+                } else {
+                  setIsCreateOpen(true);
+                }
+              }}
+            >
               <Icon icon="mdi:plus" width={18} />
               {t('apiKeys.createApiKey')}
+              {keyQuota && !keyQuota.allowed && (
+                <Icon icon="mdi:lock" width={12} className="absolute -top-1 -right-1 text-orange-500" />
+              )}
             </button>
           </div>
         </div>
+
+        {/* 高级筛选面板 */}
+        {showAdvancedFilter && (
+          <div className="px-4 py-4 bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 责任人筛选 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  责任人
+                </label>
+                <input
+                  type="text"
+                  placeholder="输入责任人姓名"
+                  value={ownerFilter}
+                  onChange={(e) => setOwnerFilter(e.target.value)}
+                  className="form-input w-full text-sm"
+                />
+              </div>
+              {/* 创建时间范围 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  创建时间（开始）
+                </label>
+                <input
+                  type="date"
+                  value={dateRangeFilter.start}
+                  onChange={(e) => setDateRangeFilter(prev => ({ ...prev, start: e.target.value }))}
+                  className="form-input w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  创建时间（结束）
+                </label>
+                <input
+                  type="date"
+                  value={dateRangeFilter.end}
+                  onChange={(e) => setDateRangeFilter(prev => ({ ...prev, end: e.target.value }))}
+                  className="form-input w-full text-sm"
+                />
+              </div>
+              {/* 用量范围 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  月用量范围 (K tokens)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="最小"
+                    value={tokenRangeFilter.min}
+                    onChange={(e) => setTokenRangeFilter(prev => ({ ...prev, min: e.target.value }))}
+                    className="form-input w-full text-sm"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <input
+                    type="number"
+                    placeholder="最大"
+                    value={tokenRangeFilter.max}
+                    onChange={(e) => setTokenRangeFilter(prev => ({ ...prev, max: e.target.value }))}
+                    className="form-input w-full text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            {/* 清除筛选按钮 */}
+            {(ownerFilter || dateRangeFilter.start || dateRangeFilter.end || tokenRangeFilter.min || tokenRangeFilter.max) && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  onClick={() => {
+                    setOwnerFilter('');
+                    setDateRangeFilter({ start: '', end: '' });
+                    setTokenRangeFilter({ min: '', max: '' });
+                  }}
+                >
+                  清除所有筛选条件
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 批量操作工具栏 */}
+        {selectedKeyIds.size > 0 && (
+          <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                已选择 {selectedKeyIds.size} 项
+              </span>
+              <button
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                onClick={clearSelection}
+              >
+                取消选择
+              </button>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              {canBatchOperation ? (
+                <>
+                  <button
+                    className="btn btn-secondary text-sm py-1.5 px-3"
+                    onClick={() => setShowBatchOwnerModal(true)}
+                    disabled={batchAssigning}
+                  >
+                    <Icon icon="mdi:account-edit" width={16} />
+                    分配责任人
+                  </button>
+                  <button
+                    className="btn btn-secondary text-sm py-1.5 px-3 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                    onClick={handleBatchDelete}
+                    disabled={batchDeleting}
+                  >
+                    {batchDeleting ? (
+                      <Icon icon="mdi:loading" width={16} className="animate-spin" />
+                    ) : (
+                      <Icon icon="mdi:delete" width={16} />
+                    )}
+                    批量删除
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="btn btn-primary text-sm py-1.5 px-3"
+                  onClick={() => {
+                    setUpgradeFeature('batch_operations');
+                    setShowUpgradeModal(true);
+                  }}
+                >
+                  <Icon icon="mdi:crown" width={16} />
+                  升级解锁批量操作
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 表格 */}
         <div className="overflow-x-auto">
@@ -1833,6 +2245,14 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           <table className="data-table">
             <thead>
               <tr>
+                <th className="w-10">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    checked={filteredKeys.length > 0 && filteredKeys.every(k => selectedKeyIds.has(k.id))}
+                    onChange={() => toggleSelectAll(filteredKeys)}
+                  />
+                </th>
                 <th>{t('apiKeys.namePlatform')}</th>
                 <th>{t('apiKeys.apiKeyLabel')}</th>
                 <th>{t('apiKeys.status')}</th>
@@ -1891,15 +2311,26 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               {filteredKeys.map((key) => {
                 const platform = getPlatformConfig(key.platform);
                 const status = getStatusConfig(key.status);
+                const isSelected = selectedKeyIds.has(key.id);
                 return (
                   <tr 
                     key={key.id} 
                     className={`${
-                      key.owner?.status === 'resigned' 
-                        ? 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-400' 
-                        : 'hover:bg-gray-50'
+                      isSelected 
+                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        : key.owner?.status === 'resigned' 
+                          ? 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-400' 
+                          : 'hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                   >
+                    <td className="w-10">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        checked={isSelected}
+                        onChange={() => toggleKeySelection(key.id)}
+                      />
+                    </td>
                     <td>
                       <div className="flex items-center gap-3">
                         <div 
@@ -1909,8 +2340,8 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                           <Icon icon={platform.icon} width={22} className="text-white" />
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">{key.name}</div>
-                          <div className="text-xs text-gray-500">{platform.name}</div>
+                          <div className="font-medium text-gray-900 dark:text-gray-100">{key.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{platform.name}</div>
                         </div>
                       </div>
                     </td>
@@ -3106,6 +3537,104 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         </div>,
         document.body
       )}
+
+      {/* 批量分配责任人弹窗 */}
+      {showBatchOwnerModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowBatchOwnerModal(false)}>
+          <div 
+            className="fixed inset-0 flex items-center justify-center z-50"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+              {/* 弹窗头部 */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
+                <div>
+                  <div className="font-semibold text-gray-800 dark:text-gray-100">批量分配责任人</div>
+                  <div className="text-xs text-gray-400 mt-0.5">将为 {selectedKeyIds.size} 个 Key 分配相同的责任人</div>
+                </div>
+                <button 
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors" 
+                  onClick={() => setShowBatchOwnerModal(false)}
+                >
+                  <Icon icon="mdi:close" width={20} className="text-gray-500" />
+                </button>
+              </div>
+              
+              {/* 表单内容 */}
+              <div className="p-5 space-y-4">
+                {/* 提示信息 */}
+                <div className="flex items-center gap-2 text-blue-600 text-xs bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
+                  <Icon icon="mdi:information-outline" width={16} />
+                  <span>请从团队成员中选择责任人。</span>
+                </div>
+                
+                {/* 团队成员选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                    选择责任人 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full h-10 px-3 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all"
+                    value={selectedOwnerId}
+                    onChange={e => setSelectedOwnerId(e.target.value)}
+                    autoFocus
+                  >
+                    <option value="">-- 请选择团队成员 --</option>
+                    {teamMembers.map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.name || member.email} {member.status === 'invited' && '(待接受邀请)'}
+                      </option>
+                    ))}
+                  </select>
+                  {teamMembers.length === 0 && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      暂无团队成员，请先前往成员管理页面添加成员。
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* 底部按钮 */}
+              <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowBatchOwnerModal(false)}
+                >
+                  取消
+                </button>
+                <button
+                  className={`btn ${
+                    selectedOwnerId
+                      ? 'btn-primary'
+                      : 'btn-secondary opacity-50 cursor-not-allowed'
+                  }`}
+                  onClick={() => {
+                    if (selectedOwnerId) {
+                      handleBatchAssignOwner(selectedOwnerId);
+                    }
+                  }}
+                  disabled={batchAssigning || !selectedOwnerId}
+                >
+                  {batchAssigning ? (
+                    <Icon icon="mdi:loading" width={16} className="animate-spin" />
+                  ) : (
+                    <Icon icon="mdi:check" width={16} />
+                  )}
+                  确认分配
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      
+      {/* 升级订阅弹窗 */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature={upgradeFeature}
+      />
     </div>
   );
 }

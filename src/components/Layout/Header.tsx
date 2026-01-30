@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
+import AlertBadge from '../Alerts/AlertBadge';
 
 interface HeaderProps {
   currentSection: string;
@@ -60,7 +61,8 @@ export default function Header({ currentSection, currentPlatform, onPlatformChan
           />
           <Icon icon="mdi:magnify" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} />
         </div>
-        {/* 移除右上角的同步按钮，因为统计卡片上已经有同步功能了 */}
+        {/* 告警徽章 */}
+        <AlertBadge />
       </div>
     </header>
   );

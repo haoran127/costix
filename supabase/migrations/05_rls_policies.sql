@@ -15,6 +15,8 @@ ALTER TABLE llm_api_key_owners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE llm_sync_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE llm_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE llm_alert_configs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- profiles 表 RLS 策略
@@ -252,5 +254,87 @@ CREATE POLICY "Admins can manage members" ON team_members
       WHERE user_id = auth.uid() 
       AND role IN ('owner', 'admin')
     )
+  );
+
+-- ============================================
+-- llm_alerts 表 RLS 策略
+-- ============================================
+
+-- 租户成员可以查看自己租户的告警
+DROP POLICY IF EXISTS "Tenant members can view alerts" ON llm_alerts;
+CREATE POLICY "Tenant members can view alerts" ON llm_alerts
+  FOR SELECT
+  USING (
+    tenant_id IN (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+      UNION
+      SELECT tenant_id FROM team_members WHERE user_id = auth.uid()
+    )
+    OR tenant_id IS NULL
+  );
+
+-- 租户成员可以更新告警（标记为已读、已解决）
+DROP POLICY IF EXISTS "Tenant members can update alerts" ON llm_alerts;
+CREATE POLICY "Tenant members can update alerts" ON llm_alerts
+  FOR UPDATE
+  USING (
+    tenant_id IN (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+      UNION
+      SELECT tenant_id FROM team_members WHERE user_id = auth.uid()
+    )
+    OR tenant_id IS NULL
+  )
+  WITH CHECK (
+    tenant_id IN (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+      UNION
+      SELECT tenant_id FROM team_members WHERE user_id = auth.uid()
+    )
+    OR tenant_id IS NULL
+  );
+
+-- 服务角色可以插入告警（用于后台任务）
+DROP POLICY IF EXISTS "Service can insert alerts" ON llm_alerts;
+CREATE POLICY "Service can insert alerts" ON llm_alerts
+  FOR INSERT
+  WITH CHECK (true);
+
+-- ============================================
+-- llm_alert_configs 表 RLS 策略
+-- ============================================
+
+-- 租户成员可以查看自己租户的告警配置
+DROP POLICY IF EXISTS "Tenant members can view alert configs" ON llm_alert_configs;
+CREATE POLICY "Tenant members can view alert configs" ON llm_alert_configs
+  FOR SELECT
+  USING (
+    tenant_id IN (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+      UNION
+      SELECT tenant_id FROM team_members WHERE user_id = auth.uid()
+    )
+    OR tenant_id IS NULL
+  );
+
+-- 租户管理员可以管理告警配置
+DROP POLICY IF EXISTS "Tenant admins can manage alert configs" ON llm_alert_configs;
+CREATE POLICY "Tenant admins can manage alert configs" ON llm_alert_configs
+  FOR ALL
+  USING (
+    tenant_id IN (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+      UNION
+      SELECT tenant_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
+    )
+    OR tenant_id IS NULL
+  )
+  WITH CHECK (
+    tenant_id IN (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+      UNION
+      SELECT tenant_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
+    )
+    OR tenant_id IS NULL
   );
 

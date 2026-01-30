@@ -52,6 +52,7 @@
     "apiKeys": "API Keys",
     "members": "Members",
     "platformAccounts": "Platform Accounts",
+    "activityLog": "Activity Log",
     "settings": "Settings",
     "profile": "Profile",
     "logout": "Logout",
@@ -104,6 +105,10 @@
     "emailPlaceholder": "your@email.com"
   },
   "dashboard": {
+    "usageTrend": "Usage Trend",
+    "day": "Day",
+    "week": "Week",
+    "month": "Month",
     "title": "Dashboard",
     "totalKeys": "Total Keys",
     "activeKeys": "Active Keys",
@@ -463,6 +468,60 @@
     "successMessage": "Platform account configured successfully!",
     "confirmDelete": "Are you sure you want to delete this platform account configuration? You will not be able to create new Keys via API after deletion.",
     "deleteNotImplemented": "Delete feature not yet implemented"
+  },
+  "alerts": {
+    "title": "Alerts",
+    "noAlerts": "No alerts",
+    "markAsRead": "Mark as read",
+    "markAsResolved": "Mark as resolved",
+    "markAllAsRead": "Mark all as read",
+    "unreadCount": "Unread alerts",
+    "types": {
+      "key_expiring": "Key Expiring",
+      "low_balance": "Low Balance",
+      "high_usage": "High Usage",
+      "key_error": "Key Error"
+    },
+    "severities": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    },
+    "keyExpiring": {
+      "title": "API Key Expiring Soon",
+      "message": "API Key \"{name}\" will expire in {days} days ({date})"
+    },
+    "lowBalance": {
+      "title": "Low Account Balance",
+      "message": "Platform account \"{name}\" ({platform}) balance is {balance}, below threshold {threshold}"
+    },
+    "keyError": {
+      "title": "API Key Error",
+      "message": "API Key \"{name}\" status is: {status}"
+    },
+    "highUsage": {
+      "title": "High Usage",
+      "message": "API Key \"{name}\" monthly usage {usage} exceeds threshold {threshold}"
+    }
+  },
+  "activityLog": {
+    "title": "Activity Log",
+    "subtitle": "View all API Key operation history",
+    "noLogs": "No activity logs",
+    "time": "Time",
+    "action": "Action",
+    "key": "Key",
+    "status": "Status",
+    "details": "Details",
+    "filterByKey": "Filter by Key",
+    "filterByAction": "Filter by Action",
+    "actions": {
+      "create": "Create",
+      "delete": "Delete",
+      "update": "Update",
+      "sync": "Sync",
+      "import": "Import"
+    }
   }
 }
 

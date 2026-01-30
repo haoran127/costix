@@ -53,6 +53,7 @@
     "apiKeys": "密钥管理",
     "members": "成员管理",
     "platformAccounts": "平台账号",
+    "activityLog": "操作日志",
     "volcengine": "火山引擎",
     "settings": "设置",
     "profile": "个人信息",
@@ -106,6 +107,10 @@
     "emailPlaceholder": "your@email.com"
   },
   "dashboard": {
+    "usageTrend": "用量趋势",
+    "day": "按天",
+    "week": "按周",
+    "month": "按月",
     "title": "仪表盘",
     "totalKeys": "总密钥数",
     "activeKeys": "活跃密钥",
@@ -464,6 +469,60 @@
     "successMessage": "平台账号配置成功！",
     "confirmDelete": "确定要删除此平台账号配置吗？删除后无法通过 API 创建新的 Key。",
     "deleteNotImplemented": "删除功能待实现"
+  },
+  "alerts": {
+    "title": "告警通知",
+    "noAlerts": "暂无告警",
+    "markAsRead": "标记为已读",
+    "markAsResolved": "标记为已解决",
+    "markAllAsRead": "全部标记为已读",
+    "unreadCount": "未读告警",
+    "types": {
+      "key_expiring": "Key 即将过期",
+      "low_balance": "余额不足",
+      "high_usage": "用量超标",
+      "key_error": "Key 异常"
+    },
+    "severities": {
+      "info": "信息",
+      "warning": "警告",
+      "error": "错误"
+    },
+    "keyExpiring": {
+      "title": "API Key 即将过期",
+      "message": "API Key \"{name}\" 将在 {days} 天后过期（{date}）"
+    },
+    "lowBalance": {
+      "title": "账户余额不足",
+      "message": "平台账号 \"{name}\" ({platform}) 余额为 {balance}，低于阈值 {threshold}"
+    },
+    "keyError": {
+      "title": "API Key 状态异常",
+      "message": "API Key \"{name}\" 状态为：{status}"
+    },
+    "highUsage": {
+      "title": "用量超标",
+      "message": "API Key \"{name}\" 本月用量 {usage} 超过阈值 {threshold}"
+    }
+  },
+  "activityLog": {
+    "title": "操作日志",
+    "subtitle": "查看所有 API Key 操作历史",
+    "noLogs": "暂无操作日志",
+    "time": "时间",
+    "action": "操作",
+    "key": "密钥",
+    "status": "状态",
+    "details": "详情",
+    "filterByKey": "按密钥筛选",
+    "filterByAction": "按操作类型筛选",
+    "actions": {
+      "create": "创建",
+      "delete": "删除",
+      "update": "更新",
+      "sync": "同步",
+      "import": "导入"
+    }
   }
 }
 

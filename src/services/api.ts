@@ -8,7 +8,7 @@ import { supabaseAdmin, supabase } from '../lib/supabase';
 /**
  * 获取认证 headers（包含用户 token）
  */
-async function getAuthHeaders(): Promise<HeadersInit> {
+export async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   
   try {
@@ -346,11 +346,20 @@ export async function getLLMApiKeys(params?: {
       
       let teamMembersData: any[] = [];
       if (missingUserIds.length > 0) {
-        const { data: tmData } = await supabaseAdmin
-          .from('team_members')
-          .select('user_id, name, email')
-          .in('user_id', missingUserIds);
-        teamMembersData = tmData || [];
+        try {
+          const { data: tmData, error: tmError } = await supabaseAdmin
+            .from('team_members')
+            .select('user_id, name, email')
+            .in('user_id', missingUserIds);
+          
+          if (tmError) {
+            console.warn('[getLLMApiKeys] team_members 查询失败（可能是 RLS 问题），跳过:', tmError.message);
+          } else {
+            teamMembersData = tmData || [];
+          }
+        } catch (err) {
+          console.warn('[getLLMApiKeys] team_members 查询异常，跳过:', err);
+        }
       }
       
       // 合并 profiles 和 team_members 数据

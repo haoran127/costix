@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
 import ConfirmModal from '../Modal/ConfirmModal';
 import { signOut } from '../../lib/auth';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface SidebarProps {
   currentSection: string;
@@ -30,12 +32,15 @@ const getNavItems = (t: (key: string) => string) => [
   ]},
   { section: 'settings', label: t('nav.settings'), items: [
     { id: 'platform-accounts', label: t('nav.platformAccounts'), icon: 'mdi:cloud-settings' },
+    { id: 'activity-log', label: t('nav.activityLog'), icon: 'mdi:history' },
   ]},
 ];
 
 export default function Sidebar({ currentSection, onSectionChange, user, onOpenProfile, onOpenSettings }: SidebarProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const navItems = getNavItems(t);
+  const { isFree, planDisplayName } = useSubscription();
   
   // 开发模式下显示不同的产品名称
   const isDev = import.meta.env.DEV;
@@ -115,6 +120,19 @@ export default function Sidebar({ currentSection, onSectionChange, user, onOpenP
             </div>
           ))}
         </nav>
+        
+        {/* Upgrade CTA */}
+        {isFree && (
+          <div className="px-3 pb-2">
+            <button
+              className="w-full px-3 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
+              onClick={() => navigate('/pricing')}
+            >
+              <Icon icon="mdi:crown" width={18} />
+              Upgrade to Pro
+            </button>
+          </div>
+        )}
 
         {/* User Info with Menu */}
         <div className="p-3 border-t border-gray-100 dark:border-slate-700 relative" ref={menuRef}>
