@@ -51,6 +51,8 @@
     "dashboard": "Painel",
     "apiKeys": "Chaves API",
     "members": "Membros",
+    "platformAccounts": "Contas de Plataforma",
+    "activityLog": "Log de Atividades",
     "settings": "Configurações",
     "profile": "Perfil",
     "logout": "Sair",
@@ -115,7 +117,11 @@
     "noKeys": "Sem chaves",
     "loadingData": "Carregando dados...",
     "keysCount": "{{count}} chaves",
-    "viewAll": "Ver tudo"
+    "viewAll": "Ver tudo",
+    "usageTrend": "Tendência de uso",
+    "day": "Dia",
+    "week": "Semana",
+    "month": "Mês"
   },
   "apiKeys": {
     "title": "Chaves API",
@@ -238,7 +244,8 @@
     "importExistingKey": "Importar chave existente",
     "createViaApi": "Criar via API",
     "importAndSync": "Importar e sincronizar",
-    "callApiCreate": "Chamar API para criar"
+    "callApiCreate": "Chamar API para criar",
+    "deleteWarning": "Uma vez excluído, não pode ser recuperado. Todos os serviços que usam esta chave deixarão de funcionar."
   },
   "members": {
     "title": "Membros da equipe",
@@ -411,6 +418,175 @@
     "ctaSubtitle": "Registro gratuito, experimente imediatamente os poderosos recursos de gestão de recursos IA",
     "startNow": "Começar agora",
     "allRightsReserved": "Todos os direitos reservados"
+  },
+  "platformAccounts": {
+    "title": "Configuração de Contas de Plataforma",
+    "description": "Configure contas de administrador para OpenAI, Claude, OpenRouter, Volcengine para criar e gerenciar chaves via API",
+    "addAccount": "Adicionar conta",
+    "noAccounts": "Nenhuma conta configurada",
+    "noAccountsDesc": "Após adicionar contas, você pode criar e gerenciar chaves automaticamente via API",
+    "platform": "Plataforma",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "Volcengine",
+    "accountName": "Nome da conta",
+    "adminApiKey": "Chave API Admin",
+    "statusActive": "Ativo",
+    "balance": "Saldo",
+    "guideTitle": "Como obter uma chave API Admin?",
+    "guideSubtitle": "Clique para ver o guia passo a passo para cada plataforma",
+    "openConsole": "Abrir Console",
+    "guide": {
+      "openai": {
+        "step1": "Faça login na OpenAI Platform (platform.openai.com)",
+        "step2": "Vá para Settings → Organization → API Keys",
+        "step3": "Clique em \"Create new secret key\", selecione permissões \"All\"",
+        "step4": "Copie o Project ID de Settings → Organization → Projects",
+        "note": "OpenAI requer tanto API Key Admin quanto Project ID. Certifique-se de ter permissões de administrador."
+      },
+      "anthropic": {
+        "step1": "Faça login no Anthropic Console (console.anthropic.com)",
+        "step2": "Vá para Settings → API Keys",
+        "step3": "Clique em \"Create Key\" e copie a chave gerada",
+        "note": "A chave API da Anthropic só é exibida uma vez. Guarde-a com segurança."
+      },
+      "openrouter": {
+        "step1": "Faça login no OpenRouter (openrouter.ai)",
+        "step2": "Clique no seu avatar → Keys",
+        "step3": "Clique em \"Create Key\" e copie a chave gerada"
+      },
+      "volcengine": {
+        "step1": "Faça login no Volcengine Console (console.volcengine.com)",
+        "step2": "Clique no seu avatar → Chave de acesso API",
+        "step3": "Clique em \"Criar\" para gerar AccessKey ID e Secret AccessKey",
+        "step4": "Copie tanto AccessKey ID (AK) quanto Secret AccessKey (SK)",
+        "note": "Volcengine requer tanto AK quanto SK. SK só é exibido uma vez, salve imediatamente."
+      }
+    },
+    "addAccountModal": "Adicionar conta de plataforma",
+    "editAccountModal": "Editar conta de plataforma",
+    "addFirstAccount": "Adicionar primeira conta",
+    "updateSuccessMessage": "Conta atualizada",
+    "platformCannotChange": "Não é possível alterar o tipo de plataforma no modo edição",
+    "adminApiKeyPlaceholderEdit": "Deixe em branco para manter a chave atual",
+    "adminApiKeyHintEdit": "Deixe em branco para manter, digite nova chave para atualizar",
+    "accountNamePlaceholder": "ex: Conta principal da empresa",
+    "adminApiKeyPlaceholder": "Digite a chave API Admin de {{platform}}",
+    "adminApiKeyHint": "Chave de administrador para criar e gerenciar sub-chaves via API",
+    "projectId": "ID do Projeto",
+    "projectIdPlaceholder": "Digite ID do projeto OpenAI",
+    "projectIdHint": "ID do projeto OpenAI para criar e gerenciar chaves API",
+    "organizationId": "ID da Organização",
+    "organizationIdOptional": "Opcional",
+    "organizationIdPlaceholder": "Digite ID da organização (opcional)",
+    "configuring": "Configurando...",
+    "saveAndVerify": "Salvar e Verificar",
+    "errorAccountNameRequired": "Digite nome da conta",
+    "errorAdminApiKeyRequired": "Digite chave API Admin",
+    "errorProjectIdRequired": "Digite ID do projeto",
+    "errorConfigFailed": "Erro de configuração",
+    "successMessage": "Conta configurada!",
+    "confirmDelete": "Excluir esta configuração? Não poderá criar novas chaves via API.",
+    "deleteNotImplemented": "Função de exclusão não implementada"
+  },
+  "alerts": {
+    "title": "Alertas",
+    "noAlerts": "Sem alertas",
+    "markAsRead": "Marcar como lido",
+    "markAllAsRead": "Marcar tudo como lido",
+    "types": {
+      "key_expiring": "Chave expirando",
+      "low_balance": "Saldo baixo",
+      "high_usage": "Uso alto",
+      "key_error": "Erro de chave"
+    },
+    "keyExpiring": {
+      "title": "Chave API prestes a expirar",
+      "message": "A chave API \"{name}\" expirará em {days} dias ({date})"
+    },
+    "lowBalance": {
+      "title": "Saldo da conta baixo",
+      "message": "A conta da plataforma \"{name}\" ({platform}) tem saldo de {balance}, abaixo do limite {threshold}"
+    },
+    "keyError": {
+      "title": "Erro de chave API",
+      "message": "Status da chave API \"{name}\": {status}"
+    },
+    "highUsage": {
+      "title": "Uso alto",
+      "message": "O uso mensal da chave API \"{name}\" {usage} excede o limite {threshold}"
+    },
+    "markAsResolved": "Marcar como resolvido",
+    "unreadCount": "Alertas não lidos",
+    "severities": {
+      "info": "Info",
+      "warning": "Aviso",
+      "error": "Erro"
+    }
+  },
+  "activityLog": {
+    "title": "Log de Atividades",
+    "subtitle": "Ver histórico de operações de chaves API",
+    "noLogs": "Sem logs de atividade",
+    "time": "Hora",
+    "action": "Ação",
+    "key": "Chave",
+    "status": "Status",
+    "details": "Detalhes",
+    "filterByKey": "Filtrar por chave",
+    "filterByAction": "Filtrar por ação",
+    "actions": {
+      "create": "Criar",
+      "delete": "Excluir",
+      "update": "Atualizar",
+      "sync": "Sincronizar",
+      "import": "Importar"
+    }
+  },
+  "team": {
+    "title": "Membros da Equipe",
+    "subtitle": "Gerenciar membros e permissões da equipe",
+    "inviteMember": "Convidar membro",
+    "totalMembers": "Total de membros",
+    "activeMembers": "Membros ativos",
+    "invitedMembers": "Convidados",
+    "roleOwner": "Proprietário",
+    "roleAdmin": "Administrador",
+    "roleMember": "Membro",
+    "roleViewer": "Observador",
+    "statusActive": "Ativo",
+    "statusInvited": "Convidado",
+    "sendInvite": "Enviar convite",
+    "noMembers": "Sem membros",
+    "inviteFirstMember": "Convidar primeiro membro",
+    "statusDisabled": "Desabilitado",
+    "tableHeaderMember": "Membro",
+    "tableHeaderRole": "Função",
+    "tableHeaderStatus": "Status",
+    "tableHeaderActions": "Ações",
+    "inviteModalTitle": "Convidar membro",
+    "inviteEmailLabel": "E-mail",
+    "inviteNameLabel": "Nome",
+    "inviteNamePlaceholder": "Opcional",
+    "inviteRoleLabel": "Função",
+    "roleAdminDescription": "Pode gerenciar membros e todas as chaves",
+    "roleMemberDescription": "Pode ver e gerenciar chaves",
+    "roleViewerDescription": "Somente leitura",
+    "emailRequired": "Digite o e-mail",
+    "inviteSuccess": "Convite enviado",
+    "inviteFailed": "Falha ao enviar convite",
+    "loadMembersFailed": "Falha ao carregar membros",
+    "roleUpdateSuccess": "Função atualizada",
+    "roleUpdateFailed": "Falha ao atualizar função",
+    "removeConfirmTitle": "Confirmar remoção",
+    "removeConfirmMessage": "Remover este membro? Perderá acesso aos recursos da equipe.",
+    "removeButton": "Remover",
+    "removeMemberTooltip": "Remover membro",
+    "removeSuccess": "Membro removido",
+    "removeFailed": "Falha ao remover",
+    "resendInviteTooltip": "Reenviar convite",
+    "resendInviteSuccess": "Convite reenviado",
+    "resendInviteFailed": "Falha ao reenviar"
   }
 }
-

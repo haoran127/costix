@@ -5,6 +5,7 @@ import Auth from './pages/Auth';
 import AuthCallback from './pages/AuthCallback';
 import Landing from './pages/Landing';
 import Pricing from './pages/Pricing';
+import Legal from './pages/Legal';
 import { getCurrentUser, onAuthStateChange, type AuthUser } from './lib/auth';
 
 function App() {
@@ -116,6 +117,9 @@ function App() {
       
       {/* 定价页面（无需登录也可访问） */}
       <Route path="/pricing" element={<Pricing />} />
+      
+      {/* 法律条款页面（无需登录也可访问） */}
+      <Route path="/legal/:type" element={<Legal />} />
       
       {/* 需要认证的路由 */}
       <Route 

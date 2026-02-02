@@ -411,7 +411,7 @@ export default function Landing() {
       {/* 页脚 */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-900 text-gray-400">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center">
                 <Icon icon="mdi:chart-timeline-variant" width={16} className="text-white" />
@@ -420,8 +420,28 @@ export default function Landing() {
                 {t('common.productName')}
               </span>
             </div>
+            <div className="flex items-center gap-6 text-sm">
+              <a 
+                href="/legal/privacy" 
+                className="hover:text-white transition-colors"
+              >
+                {t('auth.privacyPolicy')}
+              </a>
+              <a 
+                href="/legal/terms" 
+                className="hover:text-white transition-colors"
+              >
+                {t('auth.termsOfService')}
+              </a>
+              <a 
+                href="/pricing" 
+                className="hover:text-white transition-colors"
+              >
+                {t('landing.pricing')}
+              </a>
+            </div>
             <p className="text-sm">
-              &copy; 2025 {t('common.productName')}. {t('landing.allRightsReserved')}
+              &copy; 2026 {t('common.productName')}. {t('landing.allRightsReserved')}
             </p>
           </div>
         </div>

@@ -467,7 +467,37 @@
     "errorConfigFailed": "Configuration failed",
     "successMessage": "Platform account configured successfully!",
     "confirmDelete": "Are you sure you want to delete this platform account configuration? You will not be able to create new Keys via API after deletion.",
-    "deleteNotImplemented": "Delete feature not yet implemented"
+    "deleteNotImplemented": "Delete feature not yet implemented",
+    "guideTitle": "How to Get Admin API Key?",
+    "guideSubtitle": "Click to view step-by-step guide for each platform",
+    "openConsole": "Open Console",
+    "guide": {
+      "openai": {
+        "step1": "Log in to OpenAI Platform (platform.openai.com)",
+        "step2": "Go to Settings → Organization → API Keys",
+        "step3": "Click \"Create new secret key\", select \"All\" permissions",
+        "step4": "Copy Project ID from Settings → Organization → Projects",
+        "note": "OpenAI requires both Admin API Key and Project ID. Make sure you have organization admin permissions."
+      },
+      "anthropic": {
+        "step1": "Log in to Anthropic Console (console.anthropic.com)",
+        "step2": "Go to Settings → API Keys",
+        "step3": "Click \"Create Key\" and copy the generated key",
+        "note": "Anthropic API Key is displayed only once when created. Please save it securely."
+      },
+      "openrouter": {
+        "step1": "Log in to OpenRouter (openrouter.ai)",
+        "step2": "Click on your avatar → Keys",
+        "step3": "Click \"Create Key\" and copy the generated key"
+      },
+      "volcengine": {
+        "step1": "Log in to Volcengine Console (console.volcengine.com)",
+        "step2": "Click on your avatar → API Access Key",
+        "step3": "Click \"Create\" to generate AccessKey ID and Secret AccessKey",
+        "step4": "Copy both AccessKey ID (AK) and Secret AccessKey (SK)",
+        "note": "Volcengine requires both AK and SK. The SK is only shown once, please save it immediately."
+      }
+    }
   },
   "alerts": {
     "title": "Alerts",

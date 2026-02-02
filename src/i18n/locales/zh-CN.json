@@ -447,6 +447,7 @@
     "openai": "OpenAI",
     "anthropic": "Claude",
     "openrouter": "OpenRouter",
+    "volcengine": "火山引擎",
     "accountName": "账号名称",
     "accountNamePlaceholder": "例如：公司主账号",
     "adminApiKey": "Admin API Key",
@@ -468,7 +469,37 @@
     "errorConfigFailed": "配置失败",
     "successMessage": "平台账号配置成功！",
     "confirmDelete": "确定要删除此平台账号配置吗？删除后无法通过 API 创建新的 Key。",
-    "deleteNotImplemented": "删除功能待实现"
+    "deleteNotImplemented": "删除功能待实现",
+    "guideTitle": "如何获取 Admin API Key？",
+    "guideSubtitle": "点击展开查看各平台的详细获取步骤",
+    "openConsole": "打开控制台",
+    "guide": {
+      "openai": {
+        "step1": "登录 OpenAI 平台 (platform.openai.com)",
+        "step2": "进入 Settings → Organization → API Keys",
+        "step3": "点击「Create new secret key」，选择「All」权限",
+        "step4": "从 Settings → Organization → Projects 复制 Project ID",
+        "note": "OpenAI 需要同时提供 Admin API Key 和 Project ID。请确保您有组织管理员权限。"
+      },
+      "anthropic": {
+        "step1": "登录 Anthropic 控制台 (console.anthropic.com)",
+        "step2": "进入 Settings → API Keys",
+        "step3": "点击「Create Key」并复制生成的密钥",
+        "note": "Anthropic API Key 只在创建时显示一次，请妥善保存。"
+      },
+      "openrouter": {
+        "step1": "登录 OpenRouter (openrouter.ai)",
+        "step2": "点击头像 → Keys",
+        "step3": "点击「Create Key」并复制生成的密钥"
+      },
+      "volcengine": {
+        "step1": "登录火山引擎控制台 (console.volcengine.com)",
+        "step2": "点击头像 → API 访问密钥",
+        "step3": "点击「新建」生成 AccessKey ID 和 Secret AccessKey",
+        "step4": "同时复制 AccessKey ID (AK) 和 Secret AccessKey (SK)",
+        "note": "火山引擎需要 AK 和 SK 两个密钥。SK 只显示一次，请立即保存。"
+      }
+    }
   },
   "alerts": {
     "title": "告警通知",

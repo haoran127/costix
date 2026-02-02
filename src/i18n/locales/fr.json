@@ -51,6 +51,8 @@
     "dashboard": "Tableau de bord",
     "apiKeys": "Clés API",
     "members": "Membres",
+    "platformAccounts": "Comptes Plateforme",
+    "activityLog": "Journal d'activité",
     "settings": "Paramètres",
     "profile": "Profil",
     "logout": "Déconnexion",
@@ -115,7 +117,11 @@
     "noKeys": "Aucune clé",
     "loadingData": "Chargement des données...",
     "keysCount": "{{count}} clés",
-    "viewAll": "Voir tout"
+    "viewAll": "Voir tout",
+    "usageTrend": "Tendance d'utilisation",
+    "day": "Jour",
+    "week": "Semaine",
+    "month": "Mois"
   },
   "apiKeys": {
     "title": "Clés API",
@@ -238,7 +244,8 @@
     "importExistingKey": "Importer une clé existante",
     "createViaApi": "Créer via API",
     "importAndSync": "Importer et synchroniser",
-    "callApiCreate": "Appeler l'API pour créer"
+    "callApiCreate": "Appeler l'API pour créer",
+    "deleteWarning": "Une fois supprimé, il ne peut pas être récupéré. Tous les services utilisant cette clé ne fonctionneront plus."
   },
   "members": {
     "title": "Membres de l'équipe",
@@ -411,6 +418,175 @@
     "ctaSubtitle": "Inscription gratuite, découvrez immédiatement les puissantes fonctionnalités de gestion des ressources IA",
     "startNow": "Commencer maintenant",
     "allRightsReserved": "Tous droits réservés"
+  },
+  "platformAccounts": {
+    "title": "Configuration des Comptes Plateforme",
+    "description": "Configurez les comptes administrateur pour OpenAI, Claude, OpenRouter, Volcengine et autres plateformes pour créer et gérer les clés via API",
+    "addAccount": "Ajouter un compte",
+    "addAccountModal": "Ajouter un compte plateforme",
+    "editAccountModal": "Modifier le compte plateforme",
+    "addFirstAccount": "Ajouter le premier compte",
+    "updateSuccessMessage": "Compte mis à jour avec succès",
+    "platformCannotChange": "Le type de plateforme ne peut pas être modifié en mode édition",
+    "adminApiKeyPlaceholderEdit": "Laisser vide pour conserver la clé API actuelle",
+    "adminApiKeyHintEdit": "Laisser vide pour conserver la clé API actuelle, entrer une nouvelle clé API pour la mettre à jour",
+    "noAccounts": "Aucun compte plateforme configuré",
+    "noAccountsDesc": "Après avoir ajouté des comptes plateforme, vous pouvez créer et gérer automatiquement les clés via API",
+    "platform": "Plateforme",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "Volcengine",
+    "accountName": "Nom du compte",
+    "accountNamePlaceholder": "ex: Compte principal de l'entreprise",
+    "adminApiKey": "Clé API Admin",
+    "adminApiKeyPlaceholder": "Entrez la clé API Admin {{platform}}",
+    "adminApiKeyHint": "Clé administrateur pour créer et gérer les sous-clés via API",
+    "projectId": "ID du Projet",
+    "projectIdPlaceholder": "Entrez l'ID du projet OpenAI",
+    "projectIdHint": "ID du projet OpenAI pour créer et gérer les clés API",
+    "organizationId": "ID de l'Organisation",
+    "organizationIdOptional": "Optionnel",
+    "organizationIdPlaceholder": "Entrez l'ID de l'organisation (optionnel)",
+    "configuring": "Configuration...",
+    "saveAndVerify": "Enregistrer et Vérifier",
+    "statusActive": "Actif",
+    "balance": "Solde",
+    "errorAccountNameRequired": "Veuillez entrer le nom du compte",
+    "errorAdminApiKeyRequired": "Veuillez entrer la clé API Admin",
+    "errorProjectIdRequired": "Veuillez entrer l'ID du projet",
+    "errorConfigFailed": "Échec de la configuration",
+    "successMessage": "Compte plateforme configuré avec succès!",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette configuration de compte plateforme? Vous ne pourrez plus créer de nouvelles clés via API après la suppression.",
+    "deleteNotImplemented": "Fonction de suppression pas encore implémentée",
+    "guideTitle": "Comment obtenir une clé API Admin?",
+    "guideSubtitle": "Cliquez pour voir le guide étape par étape pour chaque plateforme",
+    "openConsole": "Ouvrir la Console",
+    "guide": {
+      "openai": {
+        "step1": "Connectez-vous à OpenAI Platform (platform.openai.com)",
+        "step2": "Allez dans Settings → Organization → API Keys",
+        "step3": "Cliquez sur \"Create new secret key\", sélectionnez les permissions \"All\"",
+        "step4": "Copiez l'ID du projet depuis Settings → Organization → Projects",
+        "note": "OpenAI nécessite à la fois une clé API Admin et un ID de projet. Assurez-vous d'avoir les permissions d'administrateur de l'organisation."
+      },
+      "anthropic": {
+        "step1": "Connectez-vous à Anthropic Console (console.anthropic.com)",
+        "step2": "Allez dans Settings → API Keys",
+        "step3": "Cliquez sur \"Create Key\" et copiez la clé générée",
+        "note": "La clé API Anthropic n'est affichée qu'une seule fois lors de la création. Veuillez la conserver en sécurité."
+      },
+      "openrouter": {
+        "step1": "Connectez-vous à OpenRouter (openrouter.ai)",
+        "step2": "Cliquez sur votre avatar → Keys",
+        "step3": "Cliquez sur \"Create Key\" et copiez la clé générée"
+      },
+      "volcengine": {
+        "step1": "Connectez-vous à Volcengine Console (console.volcengine.com)",
+        "step2": "Cliquez sur votre avatar → Clé d'accès API",
+        "step3": "Cliquez sur \"Créer\" pour générer AccessKey ID et Secret AccessKey",
+        "step4": "Copiez à la fois AccessKey ID (AK) et Secret AccessKey (SK)",
+        "note": "Volcengine nécessite à la fois AK et SK. Le SK n'est affiché qu'une seule fois, veuillez l'enregistrer immédiatement."
+      }
+    }
+  },
+  "alerts": {
+    "title": "Alertes",
+    "noAlerts": "Aucune alerte",
+    "markAsRead": "Marquer comme lu",
+    "markAsResolved": "Marquer comme résolu",
+    "markAllAsRead": "Tout marquer comme lu",
+    "unreadCount": "Alertes non lues",
+    "types": {
+      "key_expiring": "Clé expirant",
+      "low_balance": "Solde faible",
+      "high_usage": "Utilisation élevée",
+      "key_error": "Erreur de clé"
+    },
+    "severities": {
+      "info": "Info",
+      "warning": "Avertissement",
+      "error": "Erreur"
+    },
+    "keyExpiring": {
+      "title": "Clé API bientôt expirée",
+      "message": "La clé API \"{name}\" expire dans {days} jours ({date})"
+    },
+    "lowBalance": {
+      "title": "Solde du compte bas",
+      "message": "Le compte plateforme \"{name}\" ({platform}) a un solde de {balance}, inférieur au seuil {threshold}"
+    },
+    "keyError": {
+      "title": "Erreur de clé API",
+      "message": "Statut de la clé API \"{name}\": {status}"
+    },
+    "highUsage": {
+      "title": "Utilisation élevée",
+      "message": "L'utilisation mensuelle de la clé API \"{name}\" {usage} dépasse le seuil {threshold}"
+    }
+  },
+  "activityLog": {
+    "title": "Journal d'activité",
+    "subtitle": "Voir l'historique de toutes les opérations de clés API",
+    "noLogs": "Aucun journal d'activité",
+    "time": "Heure",
+    "action": "Action",
+    "key": "Clé",
+    "status": "Statut",
+    "details": "Détails",
+    "filterByKey": "Filtrer par clé",
+    "filterByAction": "Filtrer par action",
+    "actions": {
+      "create": "Créer",
+      "delete": "Supprimer",
+      "update": "Mettre à jour",
+      "sync": "Synchroniser",
+      "import": "Importer"
+    }
+  },
+  "team": {
+    "title": "Membres de l'équipe",
+    "subtitle": "Gérer les membres de l'équipe et les permissions",
+    "inviteMember": "Inviter un membre",
+    "totalMembers": "Total des membres",
+    "activeMembers": "Membres actifs",
+    "invitedMembers": "Invités",
+    "roleOwner": "Propriétaire",
+    "roleAdmin": "Administrateur",
+    "roleMember": "Membre",
+    "roleViewer": "Observateur",
+    "statusActive": "Actif",
+    "statusInvited": "Invité",
+    "statusDisabled": "Désactivé",
+    "tableHeaderMember": "Membre",
+    "tableHeaderRole": "Rôle",
+    "tableHeaderStatus": "Statut",
+    "tableHeaderActions": "Actions",
+    "inviteModalTitle": "Inviter un membre",
+    "inviteEmailLabel": "E-mail",
+    "inviteNameLabel": "Nom",
+    "inviteNamePlaceholder": "Optionnel",
+    "inviteRoleLabel": "Rôle",
+    "roleAdminDescription": "Peut gérer les membres et toutes les clés",
+    "roleMemberDescription": "Peut voir et gérer les clés",
+    "roleViewerDescription": "Lecture seule",
+    "sendInvite": "Envoyer l'invitation",
+    "emailRequired": "Veuillez entrer l'e-mail",
+    "inviteSuccess": "Invitation envoyée",
+    "inviteFailed": "Échec de l'envoi de l'invitation",
+    "loadMembersFailed": "Échec du chargement des membres",
+    "roleUpdateSuccess": "Rôle mis à jour",
+    "roleUpdateFailed": "Échec de la mise à jour du rôle",
+    "removeConfirmTitle": "Confirmer la suppression",
+    "removeConfirmMessage": "Êtes-vous sûr de vouloir supprimer ce membre? Il perdra l'accès aux ressources de l'équipe.",
+    "removeButton": "Supprimer",
+    "removeMemberTooltip": "Supprimer le membre",
+    "removeSuccess": "Membre supprimé",
+    "removeFailed": "Échec de la suppression",
+    "resendInviteTooltip": "Renvoyer l'invitation",
+    "resendInviteSuccess": "Invitation renvoyée",
+    "resendInviteFailed": "Échec du renvoi",
+    "noMembers": "Aucun membre",
+    "inviteFirstMember": "Inviter le premier membre"
   }
 }
-

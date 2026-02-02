@@ -51,6 +51,8 @@
     "dashboard": "儀表板",
     "apiKeys": "密鑰管理",
     "members": "成員管理",
+    "platformAccounts": "平台帳號",
+    "activityLog": "操作日誌",
     "settings": "設定",
     "profile": "個人資訊",
     "logout": "登出",
@@ -79,7 +81,11 @@
     "noKeys": "暫無密鑰",
     "loadingData": "載入資料中...",
     "keysCount": "{{count}} 個密鑰",
-    "viewAll": "檢視全部"
+    "viewAll": "檢視全部",
+    "usageTrend": "用量趨勢",
+    "day": "按天",
+    "week": "按週",
+    "month": "按月"
   },
   "apiKeys": {
     "title": "密鑰管理",
@@ -203,19 +209,7 @@
     "createViaApi": "透過 API 建立",
     "importAndSync": "匯入並同步",
     "callApiCreate": "呼叫 API 建立",
-    "addApiKey": "新增 API Key",
-    "addApiKeyDesc": "匯入現有密鑰或透過 API 建立新密鑰",
-    "keyNameDesc": "用於識別這個 API Key 的用途",
-    "apiKeyLabel": "API Key",
-    "apiKeyInputDesc": "輸入您現有的 API Key，系統將驗證並自動同步用量資料",
-    "claudeApiKeyNotSupported": "Claude Admin API 不支援建立 API Key。請前往",
-    "autoCreateApiKeyDesc": "系統將透過 {{platform}} 的 Admin API 自動建立新的 API Key。",
-    "apiKeyCreatedSuccess": "API Key 建立成功！",
-    "keyShownOnce": "密鑰只顯示一次，請立即複製儲存",
-    "keepKeySafe": "請妥善保管此密鑰",
-    "keyShownOnceWarning": "此 API Key 僅顯示一次，關閉後將無法再次檢視完整密鑰。請立即複製並安全儲存。",
-    "fillApiKey": "請填寫 API Key",
-    "platformKeys": "{{platform}} Keys"
+    "deleteWarning": "刪除後將無法恢復，使用此 Key 的所有服務都將無法正常工作。"
   },
   "members": {
     "title": "團隊成員",
@@ -424,6 +418,175 @@
     "ctaSubtitle": "免費註冊，立即體驗強大的 AI 資源管理功能",
     "startNow": "立即開始",
     "allRightsReserved": "保留所有權利"
+  },
+  "platformAccounts": {
+    "title": "平台帳號設定",
+    "description": "設定 OpenAI、Claude、OpenRouter、火山引擎等平台的管理員帳號，用於透過 API 建立和管理 Key",
+    "addAccount": "新增平台帳號",
+    "addAccountModal": "新增平台帳號",
+    "editAccountModal": "編輯平台帳號",
+    "addFirstAccount": "新增第一個平台帳號",
+    "updateSuccessMessage": "平台帳號更新成功",
+    "platformCannotChange": "編輯模式下無法變更平台類型",
+    "adminApiKeyPlaceholderEdit": "留空則不變更 API Key",
+    "adminApiKeyHintEdit": "留空則不變更 API Key，如需變更請填寫新的 API Key",
+    "noAccounts": "暫無平台帳號設定",
+    "noAccountsDesc": "新增平台帳號後，可以透過 API 自動建立和管理 Key",
+    "platform": "平台",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "火山引擎",
+    "accountName": "帳號名稱",
+    "accountNamePlaceholder": "例如：公司主帳號",
+    "adminApiKey": "Admin API Key",
+    "adminApiKeyPlaceholder": "請輸入 {{platform}} 的 Admin API Key",
+    "adminApiKeyHint": "用於透過 API 建立和管理子 Key 的管理員金鑰",
+    "projectId": "Project ID",
+    "projectIdPlaceholder": "請輸入 OpenAI Project ID",
+    "projectIdHint": "OpenAI 專案 ID，用於建立和管理 API Key",
+    "organizationId": "Organization ID",
+    "organizationIdOptional": "選填",
+    "organizationIdPlaceholder": "請輸入 Organization ID（選填）",
+    "configuring": "設定中...",
+    "saveAndVerify": "儲存並驗證",
+    "statusActive": "已啟用",
+    "balance": "餘額",
+    "errorAccountNameRequired": "請輸入帳號名稱",
+    "errorAdminApiKeyRequired": "請輸入 Admin API Key",
+    "errorProjectIdRequired": "請輸入 Project ID",
+    "errorConfigFailed": "設定失敗",
+    "successMessage": "平台帳號設定成功！",
+    "confirmDelete": "確定要刪除此平台帳號設定嗎？刪除後無法透過 API 建立新的 Key。",
+    "deleteNotImplemented": "刪除功能待實作",
+    "guideTitle": "如何取得 Admin API Key？",
+    "guideSubtitle": "點擊展開檢視各平台的詳細取得步驟",
+    "openConsole": "開啟控制台",
+    "guide": {
+      "openai": {
+        "step1": "登入 OpenAI 平台 (platform.openai.com)",
+        "step2": "進入 Settings → Organization → API Keys",
+        "step3": "點擊「Create new secret key」，選擇「All」權限",
+        "step4": "從 Settings → Organization → Projects 複製 Project ID",
+        "note": "OpenAI 需要同時提供 Admin API Key 和 Project ID。請確保您有組織管理員權限。"
+      },
+      "anthropic": {
+        "step1": "登入 Anthropic 控制台 (console.anthropic.com)",
+        "step2": "進入 Settings → API Keys",
+        "step3": "點擊「Create Key」並複製產生的金鑰",
+        "note": "Anthropic API Key 只在建立時顯示一次，請妥善保存。"
+      },
+      "openrouter": {
+        "step1": "登入 OpenRouter (openrouter.ai)",
+        "step2": "點擊頭像 → Keys",
+        "step3": "點擊「Create Key」並複製產生的金鑰"
+      },
+      "volcengine": {
+        "step1": "登入火山引擎控制台 (console.volcengine.com)",
+        "step2": "點擊頭像 → API 存取金鑰",
+        "step3": "點擊「新建」產生 AccessKey ID 和 Secret AccessKey",
+        "step4": "同時複製 AccessKey ID (AK) 和 Secret AccessKey (SK)",
+        "note": "火山引擎需要 AK 和 SK 兩個金鑰。SK 只顯示一次，請立即保存。"
+      }
+    }
+  },
+  "alerts": {
+    "title": "告警通知",
+    "noAlerts": "暫無告警",
+    "markAsRead": "標記為已讀",
+    "markAsResolved": "標記為已解決",
+    "markAllAsRead": "全部標記為已讀",
+    "unreadCount": "未讀告警",
+    "types": {
+      "key_expiring": "Key 即將過期",
+      "low_balance": "餘額不足",
+      "high_usage": "用量超標",
+      "key_error": "Key 異常"
+    },
+    "severities": {
+      "info": "資訊",
+      "warning": "警告",
+      "error": "錯誤"
+    },
+    "keyExpiring": {
+      "title": "API Key 即將過期",
+      "message": "API Key \"{name}\" 將在 {days} 天後過期（{date}）"
+    },
+    "lowBalance": {
+      "title": "帳戶餘額不足",
+      "message": "平台帳號 \"{name}\" ({platform}) 餘額為 {balance}，低於閾值 {threshold}"
+    },
+    "keyError": {
+      "title": "API Key 狀態異常",
+      "message": "API Key \"{name}\" 狀態為：{status}"
+    },
+    "highUsage": {
+      "title": "用量超標",
+      "message": "API Key \"{name}\" 本月用量 {usage} 超過閾值 {threshold}"
+    }
+  },
+  "activityLog": {
+    "title": "操作日誌",
+    "subtitle": "檢視所有 API Key 操作歷史",
+    "noLogs": "暫無操作日誌",
+    "time": "時間",
+    "action": "操作",
+    "key": "密鑰",
+    "status": "狀態",
+    "details": "詳情",
+    "filterByKey": "按密鑰篩選",
+    "filterByAction": "按操作類型篩選",
+    "actions": {
+      "create": "建立",
+      "delete": "刪除",
+      "update": "更新",
+      "sync": "同步",
+      "import": "匯入"
+    }
+  },
+  "team": {
+    "title": "團隊成員",
+    "subtitle": "管理團隊成員和權限",
+    "inviteMember": "邀請成員",
+    "totalMembers": "總成員數",
+    "activeMembers": "活躍成員",
+    "invitedMembers": "已邀請",
+    "roleOwner": "擁有者",
+    "roleAdmin": "管理員",
+    "roleMember": "成員",
+    "roleViewer": "檢視者",
+    "statusActive": "活躍",
+    "statusInvited": "已邀請",
+    "statusDisabled": "已停用",
+    "tableHeaderMember": "成員",
+    "tableHeaderRole": "角色",
+    "tableHeaderStatus": "狀態",
+    "tableHeaderActions": "操作",
+    "inviteModalTitle": "邀請成員",
+    "inviteEmailLabel": "電子郵件",
+    "inviteNameLabel": "姓名",
+    "inviteNamePlaceholder": "選填",
+    "inviteRoleLabel": "角色",
+    "roleAdminDescription": "可以管理成員和所有密鑰",
+    "roleMemberDescription": "可以檢視和管理密鑰",
+    "roleViewerDescription": "僅可檢視",
+    "sendInvite": "傳送邀請",
+    "emailRequired": "請輸入電子郵件",
+    "inviteSuccess": "邀請已傳送",
+    "inviteFailed": "邀請傳送失敗",
+    "loadMembersFailed": "載入成員失敗",
+    "roleUpdateSuccess": "角色已更新",
+    "roleUpdateFailed": "角色更新失敗",
+    "removeConfirmTitle": "確認移除",
+    "removeConfirmMessage": "確定要移除此成員嗎？移除後將無法存取團隊資源。",
+    "removeButton": "移除",
+    "removeMemberTooltip": "移除成員",
+    "removeSuccess": "成員已移除",
+    "removeFailed": "移除失敗",
+    "resendInviteTooltip": "重新傳送邀請",
+    "resendInviteSuccess": "邀請已重新傳送",
+    "resendInviteFailed": "重新傳送失敗",
+    "noMembers": "暫無成員",
+    "inviteFirstMember": "邀請第一位成員"
   }
 }
-

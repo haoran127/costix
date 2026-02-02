@@ -416,9 +416,9 @@ export default function Auth({ onSuccess }: AuthProps) {
 
               <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                 {t('auth.termsAndPrivacy')}{' '}
-                <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">{t('auth.termsOfService')}</a>
+                <a href="/legal/terms" target="_blank" className="text-blue-600 dark:text-blue-400 hover:underline">{t('auth.termsOfService')}</a>
                 {' '}{t('auth.and')}{' '}
-                <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">{t('auth.privacyPolicy')}</a>
+                <a href="/legal/privacy" target="_blank" className="text-blue-600 dark:text-blue-400 hover:underline">{t('auth.privacyPolicy')}</a>
               </p>
             </form>
           )}

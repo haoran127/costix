@@ -51,6 +51,8 @@
     "dashboard": "대시보드",
     "apiKeys": "키 관리",
     "members": "멤버 관리",
+    "platformAccounts": "플랫폼 계정",
+    "activityLog": "활동 로그",
     "settings": "설정",
     "profile": "프로필",
     "logout": "로그아웃",
@@ -79,7 +81,11 @@
     "noKeys": "키 없음",
     "loadingData": "데이터 로딩 중...",
     "keysCount": "{{count}}개 키",
-    "viewAll": "전체 보기"
+    "viewAll": "전체 보기",
+    "usageTrend": "사용량 트렌드",
+    "day": "일별",
+    "week": "주별",
+    "month": "월별"
   },
   "apiKeys": {
     "title": "키 관리",
@@ -203,19 +209,7 @@
     "createViaApi": "API를 통해 생성",
     "importAndSync": "가져오기 및 동기화",
     "callApiCreate": "API 호출하여 생성",
-    "addApiKey": "API 키 추가",
-    "addApiKeyDesc": "기존 키 가져오기 또는 API를 통해 새 키 생성",
-    "keyNameDesc": "이 API 키의 용도를 식별하는 데 사용",
-    "apiKeyLabel": "API 키",
-    "apiKeyInputDesc": "기존 API 키를 입력하면 시스템이 확인하고 사용량 데이터를 자동으로 동기화합니다",
-    "claudeApiKeyNotSupported": "Claude Admin API는 API 키 생성을 지원하지 않습니다.",
-    "autoCreateApiKeyDesc": "시스템이 {{platform}}의 Admin API를 통해 새 API 키를 자동으로 생성합니다.",
-    "apiKeyCreatedSuccess": "API 키가 생성되었습니다!",
-    "keyShownOnce": "키는 한 번만 표시됩니다. 즉시 복사하여 저장하세요",
-    "keepKeySafe": "이 키를 안전하게 보관하세요",
-    "keyShownOnceWarning": "이 API 키는 한 번만 표시됩니다. 닫은 후에는 전체 키를 다시 볼 수 없습니다. 즉시 복사하여 안전하게 저장하세요.",
-    "fillApiKey": "API 키를 입력해 주세요",
-    "platformKeys": "{{platform}} 키"
+    "deleteWarning": "삭제 후 복구할 수 없습니다. 이 키를 사용하는 모든 서비스가 정상적으로 작동하지 않게 됩니다."
   },
   "members": {
     "title": "팀 멤버",
@@ -424,6 +418,175 @@
     "ctaSubtitle": "무료 등록으로 강력한 AI 리소스 관리 기능을 즉시 체험",
     "startNow": "지금 시작하기",
     "allRightsReserved": "모든 권리 보유"
+  },
+  "platformAccounts": {
+    "title": "플랫폼 계정 설정",
+    "description": "OpenAI, Claude, OpenRouter, 화산엔진 등의 관리자 계정을 설정하여 API로 키 생성 및 관리",
+    "addAccount": "계정 추가",
+    "addAccountModal": "플랫폼 계정 추가",
+    "editAccountModal": "플랫폼 계정 편집",
+    "addFirstAccount": "첫 번째 계정 추가",
+    "updateSuccessMessage": "계정 업데이트 성공",
+    "platformCannotChange": "편집 모드에서는 플랫폼을 변경할 수 없습니다",
+    "adminApiKeyPlaceholderEdit": "비워두면 현재 API 키 유지",
+    "adminApiKeyHintEdit": "비워두면 현재 API 키 유지, 새 API 키를 입력하면 업데이트",
+    "noAccounts": "플랫폼 계정 미설정",
+    "noAccountsDesc": "플랫폼 계정 추가 후 API로 키를 자동 생성 및 관리 가능",
+    "platform": "플랫폼",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "화산엔진",
+    "accountName": "계정 이름",
+    "accountNamePlaceholder": "예: 회사 메인 계정",
+    "adminApiKey": "Admin API 키",
+    "adminApiKeyPlaceholder": "{{platform}} Admin API 키 입력",
+    "adminApiKeyHint": "API를 통해 서브키를 생성 및 관리하기 위한 관리자 키",
+    "projectId": "프로젝트 ID",
+    "projectIdPlaceholder": "OpenAI 프로젝트 ID 입력",
+    "projectIdHint": "OpenAI 프로젝트 ID, API 키 생성 및 관리에 사용",
+    "organizationId": "조직 ID",
+    "organizationIdOptional": "선택",
+    "organizationIdPlaceholder": "조직 ID 입력 (선택)",
+    "configuring": "설정 중...",
+    "saveAndVerify": "저장 및 검증",
+    "statusActive": "활성",
+    "balance": "잔액",
+    "errorAccountNameRequired": "계정 이름을 입력해 주세요",
+    "errorAdminApiKeyRequired": "Admin API 키를 입력해 주세요",
+    "errorProjectIdRequired": "프로젝트 ID를 입력해 주세요",
+    "errorConfigFailed": "설정 실패",
+    "successMessage": "플랫폼 계정 설정 성공!",
+    "confirmDelete": "이 플랫폼 계정 설정을 삭제하시겠습니까? 삭제 후 API로 새 키를 생성할 수 없습니다.",
+    "deleteNotImplemented": "삭제 기능 미구현",
+    "guideTitle": "Admin API 키 가져오는 방법",
+    "guideSubtitle": "클릭하여 각 플랫폼의 상세 단계 보기",
+    "openConsole": "콘솔 열기",
+    "guide": {
+      "openai": {
+        "step1": "OpenAI 플랫폼에 로그인 (platform.openai.com)",
+        "step2": "Settings → Organization → API Keys로 이동",
+        "step3": "\"Create new secret key\"를 클릭하고 \"All\" 권한 선택",
+        "step4": "Settings → Organization → Projects에서 Project ID 복사",
+        "note": "OpenAI는 Admin API 키와 Project ID가 모두 필요합니다. 조직 관리자 권한이 있는지 확인하세요."
+      },
+      "anthropic": {
+        "step1": "Anthropic 콘솔에 로그인 (console.anthropic.com)",
+        "step2": "Settings → API Keys로 이동",
+        "step3": "\"Create Key\"를 클릭하고 생성된 키 복사",
+        "note": "Anthropic API 키는 생성 시 한 번만 표시됩니다. 안전하게 저장하세요."
+      },
+      "openrouter": {
+        "step1": "OpenRouter에 로그인 (openrouter.ai)",
+        "step2": "아바타 클릭 → Keys",
+        "step3": "\"Create Key\"를 클릭하고 생성된 키 복사"
+      },
+      "volcengine": {
+        "step1": "화산엔진 콘솔에 로그인 (console.volcengine.com)",
+        "step2": "아바타 클릭 → API 액세스 키",
+        "step3": "\"새로 만들기\"를 클릭하여 AccessKey ID와 Secret AccessKey 생성",
+        "step4": "AccessKey ID (AK)와 Secret AccessKey (SK) 모두 복사",
+        "note": "화산엔진은 AK와 SK 두 가지 키가 모두 필요합니다. SK는 한 번만 표시되므로 즉시 저장하세요."
+      }
+    }
+  },
+  "alerts": {
+    "title": "알림",
+    "noAlerts": "알림 없음",
+    "markAsRead": "읽음으로 표시",
+    "markAsResolved": "해결됨으로 표시",
+    "markAllAsRead": "모두 읽음으로 표시",
+    "unreadCount": "읽지 않은 알림",
+    "types": {
+      "key_expiring": "키 만료 임박",
+      "low_balance": "잔액 부족",
+      "high_usage": "높은 사용량",
+      "key_error": "키 오류"
+    },
+    "severities": {
+      "info": "정보",
+      "warning": "경고",
+      "error": "오류"
+    },
+    "keyExpiring": {
+      "title": "API 키 만료 임박",
+      "message": "API 키 \"{name}\"이(가) {days}일 후 만료됩니다 ({date})"
+    },
+    "lowBalance": {
+      "title": "계정 잔액 부족",
+      "message": "플랫폼 계정 \"{name}\" ({platform})의 잔액이 {balance}으로 임계값 {threshold} 미만입니다"
+    },
+    "keyError": {
+      "title": "API 키 오류",
+      "message": "API 키 \"{name}\" 상태: {status}"
+    },
+    "highUsage": {
+      "title": "높은 사용량",
+      "message": "API 키 \"{name}\"의 이번 달 사용량 {usage}이(가) 임계값 {threshold}을(를) 초과했습니다"
+    }
+  },
+  "activityLog": {
+    "title": "활동 로그",
+    "subtitle": "모든 API 키 작업 기록 보기",
+    "noLogs": "활동 로그 없음",
+    "time": "시간",
+    "action": "작업",
+    "key": "키",
+    "status": "상태",
+    "details": "상세",
+    "filterByKey": "키로 필터",
+    "filterByAction": "작업으로 필터",
+    "actions": {
+      "create": "생성",
+      "delete": "삭제",
+      "update": "업데이트",
+      "sync": "동기화",
+      "import": "가져오기"
+    }
+  },
+  "team": {
+    "title": "팀 멤버",
+    "subtitle": "팀 멤버 및 권한 관리",
+    "inviteMember": "멤버 초대",
+    "totalMembers": "총 멤버 수",
+    "activeMembers": "활성 멤버",
+    "invitedMembers": "초대됨",
+    "roleOwner": "소유자",
+    "roleAdmin": "관리자",
+    "roleMember": "멤버",
+    "roleViewer": "뷰어",
+    "statusActive": "활성",
+    "statusInvited": "초대됨",
+    "statusDisabled": "비활성",
+    "tableHeaderMember": "멤버",
+    "tableHeaderRole": "역할",
+    "tableHeaderStatus": "상태",
+    "tableHeaderActions": "작업",
+    "inviteModalTitle": "멤버 초대",
+    "inviteEmailLabel": "이메일",
+    "inviteNameLabel": "이름",
+    "inviteNamePlaceholder": "선택",
+    "inviteRoleLabel": "역할",
+    "roleAdminDescription": "멤버 및 모든 키 관리 가능",
+    "roleMemberDescription": "키 보기 및 관리 가능",
+    "roleViewerDescription": "보기만 가능",
+    "sendInvite": "초대 보내기",
+    "emailRequired": "이메일을 입력해 주세요",
+    "inviteSuccess": "초대를 보냈습니다",
+    "inviteFailed": "초대 보내기 실패",
+    "loadMembersFailed": "멤버 로드 실패",
+    "roleUpdateSuccess": "역할이 업데이트되었습니다",
+    "roleUpdateFailed": "역할 업데이트 실패",
+    "removeConfirmTitle": "삭제 확인",
+    "removeConfirmMessage": "이 멤버를 삭제하시겠습니까? 팀 리소스에 접근할 수 없게 됩니다.",
+    "removeButton": "삭제",
+    "removeMemberTooltip": "멤버 삭제",
+    "removeSuccess": "멤버가 삭제되었습니다",
+    "removeFailed": "삭제 실패",
+    "resendInviteTooltip": "초대 재전송",
+    "resendInviteSuccess": "초대를 재전송했습니다",
+    "resendInviteFailed": "재전송 실패",
+    "noMembers": "멤버 없음",
+    "inviteFirstMember": "첫 번째 멤버 초대"
   }
 }
-

@@ -51,6 +51,8 @@
     "dashboard": "Dasbor",
     "apiKeys": "Kunci API",
     "members": "Anggota",
+    "platformAccounts": "Akun Platform",
+    "activityLog": "Log Aktivitas",
     "settings": "Pengaturan",
     "profile": "Profil",
     "logout": "Keluar",
@@ -115,7 +117,11 @@
     "noKeys": "Tidak ada kunci",
     "loadingData": "Memuat data...",
     "keysCount": "{{count}} kunci",
-    "viewAll": "Lihat semua"
+    "viewAll": "Lihat semua",
+    "usageTrend": "Tren Penggunaan",
+    "day": "Hari",
+    "week": "Minggu",
+    "month": "Bulan"
   },
   "apiKeys": {
     "title": "Kunci API",
@@ -238,7 +244,8 @@
     "importExistingKey": "Impor kunci yang ada",
     "createViaApi": "Buat via API",
     "importAndSync": "Impor dan sinkronkan",
-    "callApiCreate": "Panggil API untuk membuat"
+    "callApiCreate": "Panggil API untuk membuat",
+    "deleteWarning": "Setelah dihapus tidak dapat dipulihkan. Semua layanan yang menggunakan kunci ini tidak akan berfungsi."
   },
   "members": {
     "title": "Anggota tim",
@@ -411,6 +418,175 @@
     "ctaSubtitle": "Pendaftaran gratis, segera alami fitur manajemen sumber daya AI yang kuat",
     "startNow": "Mulai Sekarang",
     "allRightsReserved": "Hak Cipta Dilindungi"
+  },
+  "platformAccounts": {
+    "title": "Konfigurasi Akun Platform",
+    "description": "Konfigurasikan akun administrator untuk OpenAI, Claude, OpenRouter, Volcengine untuk membuat dan mengelola kunci via API",
+    "addAccount": "Tambah akun",
+    "noAccounts": "Tidak ada akun yang dikonfigurasi",
+    "noAccountsDesc": "Setelah menambahkan akun, Anda dapat membuat dan mengelola kunci secara otomatis via API",
+    "platform": "Platform",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "Volcengine",
+    "accountName": "Nama akun",
+    "adminApiKey": "Kunci API Admin",
+    "statusActive": "Aktif",
+    "balance": "Saldo",
+    "guideTitle": "Bagaimana cara mendapatkan kunci API Admin?",
+    "guideSubtitle": "Klik untuk melihat panduan langkah demi langkah untuk setiap platform",
+    "openConsole": "Buka Konsol",
+    "guide": {
+      "openai": {
+        "step1": "Masuk ke OpenAI Platform (platform.openai.com)",
+        "step2": "Buka Settings → Organization → API Keys",
+        "step3": "Klik \"Create new secret key\", pilih izin \"All\"",
+        "step4": "Salin Project ID dari Settings → Organization → Projects",
+        "note": "OpenAI memerlukan API Key Admin dan Project ID. Pastikan Anda memiliki izin administrator."
+      },
+      "anthropic": {
+        "step1": "Masuk ke Anthropic Console (console.anthropic.com)",
+        "step2": "Buka Settings → API Keys",
+        "step3": "Klik \"Create Key\" dan salin kunci yang dihasilkan",
+        "note": "Kunci API Anthropic hanya ditampilkan sekali. Simpan dengan aman."
+      },
+      "openrouter": {
+        "step1": "Masuk ke OpenRouter (openrouter.ai)",
+        "step2": "Klik avatar Anda → Keys",
+        "step3": "Klik \"Create Key\" dan salin kunci yang dihasilkan"
+      },
+      "volcengine": {
+        "step1": "Masuk ke Volcengine Console (console.volcengine.com)",
+        "step2": "Klik avatar Anda → Kunci akses API",
+        "step3": "Klik \"Buat\" untuk menghasilkan AccessKey ID dan Secret AccessKey",
+        "step4": "Salin AccessKey ID (AK) dan Secret AccessKey (SK)",
+        "note": "Volcengine memerlukan AK dan SK. SK hanya ditampilkan sekali, segera simpan."
+      }
+    },
+    "addAccountModal": "Tambah akun platform",
+    "editAccountModal": "Edit akun platform",
+    "addFirstAccount": "Tambah akun pertama",
+    "updateSuccessMessage": "Akun diperbarui",
+    "platformCannotChange": "Tidak dapat mengubah jenis platform dalam mode edit",
+    "adminApiKeyPlaceholderEdit": "Biarkan kosong untuk mempertahankan kunci saat ini",
+    "adminApiKeyHintEdit": "Biarkan kosong untuk mempertahankan, masukkan kunci baru untuk memperbarui",
+    "accountNamePlaceholder": "cth: Akun utama perusahaan",
+    "adminApiKeyPlaceholder": "Masukkan kunci API Admin {{platform}}",
+    "adminApiKeyHint": "Kunci administrator untuk membuat dan mengelola sub-kunci via API",
+    "projectId": "ID Proyek",
+    "projectIdPlaceholder": "Masukkan ID proyek OpenAI",
+    "projectIdHint": "ID proyek OpenAI untuk membuat dan mengelola kunci API",
+    "organizationId": "ID Organisasi",
+    "organizationIdOptional": "Opsional",
+    "organizationIdPlaceholder": "Masukkan ID organisasi (opsional)",
+    "configuring": "Mengonfigurasi...",
+    "saveAndVerify": "Simpan dan Verifikasi",
+    "errorAccountNameRequired": "Masukkan nama akun",
+    "errorAdminApiKeyRequired": "Masukkan kunci API Admin",
+    "errorProjectIdRequired": "Masukkan ID proyek",
+    "errorConfigFailed": "Konfigurasi gagal",
+    "successMessage": "Akun dikonfigurasi!",
+    "confirmDelete": "Hapus konfigurasi ini? Tidak dapat membuat kunci baru via API.",
+    "deleteNotImplemented": "Fungsi hapus belum diimplementasi"
+  },
+  "alerts": {
+    "title": "Peringatan",
+    "noAlerts": "Tidak ada peringatan",
+    "markAsRead": "Tandai sudah dibaca",
+    "markAllAsRead": "Tandai semua sudah dibaca",
+    "types": {
+      "key_expiring": "Kunci akan kedaluwarsa",
+      "low_balance": "Saldo rendah",
+      "high_usage": "Penggunaan tinggi",
+      "key_error": "Error kunci"
+    },
+    "keyExpiring": {
+      "title": "Kunci API akan segera kedaluwarsa",
+      "message": "Kunci API \"{name}\" akan kedaluwarsa dalam {days} hari ({date})"
+    },
+    "lowBalance": {
+      "title": "Saldo akun rendah",
+      "message": "Akun platform \"{name}\" ({platform}) memiliki saldo {balance}, di bawah ambang batas {threshold}"
+    },
+    "keyError": {
+      "title": "Error kunci API",
+      "message": "Status kunci API \"{name}\": {status}"
+    },
+    "highUsage": {
+      "title": "Penggunaan tinggi",
+      "message": "Penggunaan bulanan kunci API \"{name}\" {usage} melebihi ambang batas {threshold}"
+    },
+    "markAsResolved": "Tandai sebagai terselesaikan",
+    "unreadCount": "Peringatan belum dibaca",
+    "severities": {
+      "info": "Info",
+      "warning": "Peringatan",
+      "error": "Error"
+    }
+  },
+  "activityLog": {
+    "title": "Log Aktivitas",
+    "subtitle": "Lihat riwayat operasi kunci API",
+    "noLogs": "Tidak ada log aktivitas",
+    "time": "Waktu",
+    "action": "Aksi",
+    "key": "Kunci",
+    "status": "Status",
+    "details": "Detail",
+    "filterByKey": "Filter berdasarkan kunci",
+    "filterByAction": "Filter berdasarkan aksi",
+    "actions": {
+      "create": "Buat",
+      "delete": "Hapus",
+      "update": "Perbarui",
+      "sync": "Sinkronkan",
+      "import": "Impor"
+    }
+  },
+  "team": {
+    "title": "Anggota Tim",
+    "subtitle": "Kelola anggota tim dan izin",
+    "inviteMember": "Undang anggota",
+    "totalMembers": "Total anggota",
+    "activeMembers": "Anggota aktif",
+    "invitedMembers": "Diundang",
+    "roleOwner": "Pemilik",
+    "roleAdmin": "Administrator",
+    "roleMember": "Anggota",
+    "roleViewer": "Pengamat",
+    "statusActive": "Aktif",
+    "statusInvited": "Diundang",
+    "sendInvite": "Kirim undangan",
+    "noMembers": "Tidak ada anggota",
+    "inviteFirstMember": "Undang anggota pertama",
+    "statusDisabled": "Dinonaktifkan",
+    "tableHeaderMember": "Anggota",
+    "tableHeaderRole": "Peran",
+    "tableHeaderStatus": "Status",
+    "tableHeaderActions": "Aksi",
+    "inviteModalTitle": "Undang anggota",
+    "inviteEmailLabel": "Email",
+    "inviteNameLabel": "Nama",
+    "inviteNamePlaceholder": "Opsional",
+    "inviteRoleLabel": "Peran",
+    "roleAdminDescription": "Dapat mengelola anggota dan semua kunci",
+    "roleMemberDescription": "Dapat melihat dan mengelola kunci",
+    "roleViewerDescription": "Hanya lihat",
+    "emailRequired": "Masukkan email",
+    "inviteSuccess": "Undangan terkirim",
+    "inviteFailed": "Gagal mengirim undangan",
+    "loadMembersFailed": "Gagal memuat anggota",
+    "roleUpdateSuccess": "Peran diperbarui",
+    "roleUpdateFailed": "Gagal memperbarui peran",
+    "removeConfirmTitle": "Konfirmasi penghapusan",
+    "removeConfirmMessage": "Hapus anggota ini? Mereka akan kehilangan akses ke sumber daya tim.",
+    "removeButton": "Hapus",
+    "removeMemberTooltip": "Hapus anggota",
+    "removeSuccess": "Anggota dihapus",
+    "removeFailed": "Gagal menghapus",
+    "resendInviteTooltip": "Kirim ulang undangan",
+    "resendInviteSuccess": "Undangan dikirim ulang",
+    "resendInviteFailed": "Gagal mengirim ulang"
   }
 }
-

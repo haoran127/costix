@@ -16,6 +16,7 @@ const PLATFORMS = {
     color: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400',
     requiredFields: ['admin_api_key', 'project_id'],
     optionalFields: ['organization_id'],
+    guideUrl: 'https://platform.openai.com/api-keys',
   },
   anthropic: {
     name: 'Claude (Anthropic)',
@@ -23,6 +24,7 @@ const PLATFORMS = {
     color: 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400',
     requiredFields: ['admin_api_key'],
     optionalFields: ['organization_id'],
+    guideUrl: 'https://console.anthropic.com/settings/keys',
   },
   openrouter: {
     name: 'OpenRouter',
@@ -30,6 +32,7 @@ const PLATFORMS = {
     color: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
     requiredFields: ['admin_api_key'],
     optionalFields: [],
+    guideUrl: 'https://openrouter.ai/keys',
   },
   volcengine: {
     name: '火山引擎',
@@ -38,6 +41,7 @@ const PLATFORMS = {
     requiredFields: ['admin_api_key'],
     optionalFields: [],
     adminKeyFormat: 'AK:SK', // 格式说明：access_key_id:secret_access_key
+    guideUrl: 'https://console.volcengine.com/iam/keymanage/',
   },
 } as const;
 
@@ -70,6 +74,7 @@ export default function PlatformAccounts() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   // 加载账号列表
   useEffect(() => {
@@ -298,6 +303,147 @@ export default function PlatformAccounts() {
           <Icon icon="mdi:plus" width={20} />
           {t('platformAccounts.addAccount')}
         </button>
+      </div>
+
+      {/* 如何获取 Admin Key 指南 */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+              <Icon icon="mdi:help-circle-outline" width={24} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                {t('platformAccounts.guideTitle')}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t('platformAccounts.guideSubtitle')}
+              </p>
+            </div>
+          </div>
+          <Icon 
+            icon={showGuide ? 'mdi:chevron-up' : 'mdi:chevron-down'} 
+            width={24} 
+            className="text-gray-400"
+          />
+        </button>
+        
+        {showGuide && (
+          <div className="px-5 pb-5 space-y-4 border-t border-blue-200 dark:border-blue-800 pt-4">
+            {/* OpenAI */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                  <Icon icon="simple-icons:openai" width={18} className="text-green-700 dark:text-green-400" />
+                </div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">OpenAI</h4>
+                <a 
+                  href="https://platform.openai.com/api-keys" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-auto text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  {t('platformAccounts.openConsole')}
+                  <Icon icon="mdi:open-in-new" width={14} />
+                </a>
+              </div>
+              <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
+                <li>{t('platformAccounts.guide.openai.step1')}</li>
+                <li>{t('platformAccounts.guide.openai.step2')}</li>
+                <li>{t('platformAccounts.guide.openai.step3')}</li>
+                <li>{t('platformAccounts.guide.openai.step4')}</li>
+              </ol>
+              <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-700 dark:text-yellow-400 flex items-start gap-2">
+                <Icon icon="mdi:information" width={16} className="flex-shrink-0 mt-0.5" />
+                <span>{t('platformAccounts.guide.openai.note')}</span>
+              </div>
+            </div>
+
+            {/* Anthropic/Claude */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                  <Icon icon="simple-icons:anthropic" width={18} className="text-orange-700 dark:text-orange-400" />
+                </div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">Claude (Anthropic)</h4>
+                <a 
+                  href="https://console.anthropic.com/settings/keys" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-auto text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  {t('platformAccounts.openConsole')}
+                  <Icon icon="mdi:open-in-new" width={14} />
+                </a>
+              </div>
+              <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
+                <li>{t('platformAccounts.guide.anthropic.step1')}</li>
+                <li>{t('platformAccounts.guide.anthropic.step2')}</li>
+                <li>{t('platformAccounts.guide.anthropic.step3')}</li>
+              </ol>
+              <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-700 dark:text-yellow-400 flex items-start gap-2">
+                <Icon icon="mdi:information" width={16} className="flex-shrink-0 mt-0.5" />
+                <span>{t('platformAccounts.guide.anthropic.note')}</span>
+              </div>
+            </div>
+
+            {/* OpenRouter */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                  <Icon icon="mdi:router" width={18} className="text-blue-700 dark:text-blue-400" />
+                </div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">OpenRouter</h4>
+                <a 
+                  href="https://openrouter.ai/keys" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-auto text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  {t('platformAccounts.openConsole')}
+                  <Icon icon="mdi:open-in-new" width={14} />
+                </a>
+              </div>
+              <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
+                <li>{t('platformAccounts.guide.openrouter.step1')}</li>
+                <li>{t('platformAccounts.guide.openrouter.step2')}</li>
+                <li>{t('platformAccounts.guide.openrouter.step3')}</li>
+              </ol>
+            </div>
+
+            {/* 火山引擎 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                  <Icon icon="mdi:volcano" width={18} className="text-red-700 dark:text-red-400" />
+                </div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">{t('platformAccounts.volcengine')}</h4>
+                <a 
+                  href="https://console.volcengine.com/iam/keymanage/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-auto text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  {t('platformAccounts.openConsole')}
+                  <Icon icon="mdi:open-in-new" width={14} />
+                </a>
+              </div>
+              <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
+                <li>{t('platformAccounts.guide.volcengine.step1')}</li>
+                <li>{t('platformAccounts.guide.volcengine.step2')}</li>
+                <li>{t('platformAccounts.guide.volcengine.step3')}</li>
+                <li>{t('platformAccounts.guide.volcengine.step4')}</li>
+              </ol>
+              <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-700 dark:text-yellow-400 flex items-start gap-2">
+                <Icon icon="mdi:information" width={16} className="flex-shrink-0 mt-0.5" />
+                <span>{t('platformAccounts.guide.volcengine.note')}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 账号列表 */}

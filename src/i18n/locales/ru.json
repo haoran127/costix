@@ -51,6 +51,8 @@
     "dashboard": "Панель управления",
     "apiKeys": "API ключи",
     "members": "Участники",
+    "platformAccounts": "Аккаунты платформ",
+    "activityLog": "Журнал активности",
     "settings": "Настройки",
     "profile": "Профиль",
     "logout": "Выйти",
@@ -115,7 +117,11 @@
     "noKeys": "Нет ключей",
     "loadingData": "Загрузка данных...",
     "keysCount": "{{count}} ключей",
-    "viewAll": "Показать все"
+    "viewAll": "Показать все",
+    "usageTrend": "Тренд использования",
+    "day": "День",
+    "week": "Неделя",
+    "month": "Месяц"
   },
   "apiKeys": {
     "title": "API ключи",
@@ -238,7 +244,8 @@
     "importExistingKey": "Импортировать существующий ключ",
     "createViaApi": "Создать через API",
     "importAndSync": "Импортировать и синхронизировать",
-    "callApiCreate": "Вызвать API для создания"
+    "callApiCreate": "Вызвать API для создания",
+    "deleteWarning": "После удаления восстановить невозможно. Все сервисы, использующие этот ключ, перестанут работать."
   },
   "members": {
     "title": "Участники команды",
@@ -411,6 +418,175 @@
     "ctaSubtitle": "Бесплатная регистрация, немедленно испытайте мощные функции управления ресурсами ИИ",
     "startNow": "Начать сейчас",
     "allRightsReserved": "Все права защищены"
+  },
+  "platformAccounts": {
+    "title": "Настройка аккаунтов платформ",
+    "description": "Настройте аккаунты администратора для OpenAI, Claude, OpenRouter, Volcengine для создания и управления ключами через API",
+    "addAccount": "Добавить аккаунт",
+    "noAccounts": "Нет настроенных аккаунтов",
+    "noAccountsDesc": "После добавления аккаунтов вы можете автоматически создавать и управлять ключами через API",
+    "platform": "Платформа",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "Volcengine",
+    "accountName": "Название аккаунта",
+    "adminApiKey": "Admin API ключ",
+    "statusActive": "Активен",
+    "balance": "Баланс",
+    "guideTitle": "Как получить Admin API ключ?",
+    "guideSubtitle": "Нажмите, чтобы увидеть пошаговое руководство для каждой платформы",
+    "openConsole": "Открыть консоль",
+    "guide": {
+      "openai": {
+        "step1": "Войдите в OpenAI Platform (platform.openai.com)",
+        "step2": "Перейдите в Settings → Organization → API Keys",
+        "step3": "Нажмите \"Create new secret key\", выберите права \"All\"",
+        "step4": "Скопируйте Project ID из Settings → Organization → Projects",
+        "note": "OpenAI требует как Admin API ключ, так и Project ID. Убедитесь, что у вас есть права администратора."
+      },
+      "anthropic": {
+        "step1": "Войдите в Anthropic Console (console.anthropic.com)",
+        "step2": "Перейдите в Settings → API Keys",
+        "step3": "Нажмите \"Create Key\" и скопируйте сгенерированный ключ",
+        "note": "API ключ Anthropic показывается только один раз. Сохраните его в безопасном месте."
+      },
+      "openrouter": {
+        "step1": "Войдите в OpenRouter (openrouter.ai)",
+        "step2": "Нажмите на аватар → Keys",
+        "step3": "Нажмите \"Create Key\" и скопируйте сгенерированный ключ"
+      },
+      "volcengine": {
+        "step1": "Войдите в Volcengine Console (console.volcengine.com)",
+        "step2": "Нажмите на аватар → Ключ доступа API",
+        "step3": "Нажмите \"Создать\" для генерации AccessKey ID и Secret AccessKey",
+        "step4": "Скопируйте и AccessKey ID (AK), и Secret AccessKey (SK)",
+        "note": "Volcengine требует и AK, и SK. SK показывается только один раз, сохраните сразу."
+      }
+    },
+    "addAccountModal": "Добавить аккаунт платформы",
+    "editAccountModal": "Редактировать аккаунт платформы",
+    "addFirstAccount": "Добавить первый аккаунт",
+    "updateSuccessMessage": "Аккаунт обновлен",
+    "platformCannotChange": "Нельзя изменить тип платформы в режиме редактирования",
+    "adminApiKeyPlaceholderEdit": "Оставьте пустым, чтобы сохранить текущий ключ",
+    "adminApiKeyHintEdit": "Оставьте пустым, чтобы сохранить, введите новый ключ для обновления",
+    "accountNamePlaceholder": "напр: Основной аккаунт компании",
+    "adminApiKeyPlaceholder": "Введите Admin API ключ {{platform}}",
+    "adminApiKeyHint": "Ключ администратора для создания и управления под-ключами через API",
+    "projectId": "ID проекта",
+    "projectIdPlaceholder": "Введите ID проекта OpenAI",
+    "projectIdHint": "ID проекта OpenAI для создания и управления API ключами",
+    "organizationId": "ID организации",
+    "organizationIdOptional": "Опционально",
+    "organizationIdPlaceholder": "Введите ID организации (опционально)",
+    "configuring": "Настройка...",
+    "saveAndVerify": "Сохранить и проверить",
+    "errorAccountNameRequired": "Введите название аккаунта",
+    "errorAdminApiKeyRequired": "Введите Admin API ключ",
+    "errorProjectIdRequired": "Введите ID проекта",
+    "errorConfigFailed": "Ошибка конфигурации",
+    "successMessage": "Аккаунт настроен!",
+    "confirmDelete": "Удалить эту конфигурацию? Вы не сможете создавать новые ключи через API.",
+    "deleteNotImplemented": "Функция удаления не реализована"
+  },
+  "alerts": {
+    "title": "Оповещения",
+    "noAlerts": "Нет оповещений",
+    "markAsRead": "Отметить как прочитанное",
+    "markAllAsRead": "Отметить все как прочитанное",
+    "types": {
+      "key_expiring": "Ключ истекает",
+      "low_balance": "Низкий баланс",
+      "high_usage": "Высокое использование",
+      "key_error": "Ошибка ключа"
+    },
+    "keyExpiring": {
+      "title": "API ключ скоро истечет",
+      "message": "API ключ \"{name}\" истечет через {days} дней ({date})"
+    },
+    "lowBalance": {
+      "title": "Низкий баланс аккаунта",
+      "message": "Баланс аккаунта платформы \"{name}\" ({platform}) составляет {balance}, ниже порога {threshold}"
+    },
+    "keyError": {
+      "title": "Ошибка API ключа",
+      "message": "Статус API ключа \"{name}\": {status}"
+    },
+    "highUsage": {
+      "title": "Высокое использование",
+      "message": "Месячное использование API ключа \"{name}\" {usage} превышает порог {threshold}"
+    },
+    "markAsResolved": "Отметить как решенное",
+    "unreadCount": "Непрочитанные оповещения",
+    "severities": {
+      "info": "Информация",
+      "warning": "Предупреждение",
+      "error": "Ошибка"
+    }
+  },
+  "activityLog": {
+    "title": "Журнал активности",
+    "subtitle": "Просмотр истории операций с API ключами",
+    "noLogs": "Нет записей активности",
+    "time": "Время",
+    "action": "Действие",
+    "key": "Ключ",
+    "status": "Статус",
+    "details": "Детали",
+    "filterByKey": "Фильтр по ключу",
+    "filterByAction": "Фильтр по действию",
+    "actions": {
+      "create": "Создать",
+      "delete": "Удалить",
+      "update": "Обновить",
+      "sync": "Синхронизировать",
+      "import": "Импортировать"
+    }
+  },
+  "team": {
+    "title": "Участники команды",
+    "subtitle": "Управление участниками и разрешениями команды",
+    "inviteMember": "Пригласить участника",
+    "totalMembers": "Всего участников",
+    "activeMembers": "Активные участники",
+    "invitedMembers": "Приглашены",
+    "roleOwner": "Владелец",
+    "roleAdmin": "Администратор",
+    "roleMember": "Участник",
+    "roleViewer": "Наблюдатель",
+    "statusActive": "Активен",
+    "statusInvited": "Приглашен",
+    "sendInvite": "Отправить приглашение",
+    "noMembers": "Нет участников",
+    "inviteFirstMember": "Пригласить первого участника",
+    "statusDisabled": "Отключен",
+    "tableHeaderMember": "Участник",
+    "tableHeaderRole": "Роль",
+    "tableHeaderStatus": "Статус",
+    "tableHeaderActions": "Действия",
+    "inviteModalTitle": "Пригласить участника",
+    "inviteEmailLabel": "Эл. почта",
+    "inviteNameLabel": "Имя",
+    "inviteNamePlaceholder": "Опционально",
+    "inviteRoleLabel": "Роль",
+    "roleAdminDescription": "Может управлять участниками и всеми ключами",
+    "roleMemberDescription": "Может просматривать и управлять ключами",
+    "roleViewerDescription": "Только просмотр",
+    "emailRequired": "Введите эл. почту",
+    "inviteSuccess": "Приглашение отправлено",
+    "inviteFailed": "Ошибка отправки приглашения",
+    "loadMembersFailed": "Ошибка загрузки участников",
+    "roleUpdateSuccess": "Роль обновлена",
+    "roleUpdateFailed": "Ошибка обновления роли",
+    "removeConfirmTitle": "Подтвердить удаление",
+    "removeConfirmMessage": "Удалить этого участника? Он потеряет доступ к ресурсам команды.",
+    "removeButton": "Удалить",
+    "removeMemberTooltip": "Удалить участника",
+    "removeSuccess": "Участник удален",
+    "removeFailed": "Ошибка удаления",
+    "resendInviteTooltip": "Отправить повторно",
+    "resendInviteSuccess": "Приглашение отправлено повторно",
+    "resendInviteFailed": "Ошибка повторной отправки"
   }
 }
-

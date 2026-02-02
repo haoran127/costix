@@ -51,6 +51,8 @@
     "dashboard": "Dashboard",
     "apiKeys": "API-Schlüssel",
     "members": "Mitglieder",
+    "platformAccounts": "Plattformkonten",
+    "activityLog": "Aktivitätsprotokoll",
     "settings": "Einstellungen",
     "profile": "Profil",
     "logout": "Abmelden",
@@ -115,7 +117,11 @@
     "noKeys": "Keine Schlüssel",
     "loadingData": "Daten laden...",
     "keysCount": "{{count}} Schlüssel",
-    "viewAll": "Alle ansehen"
+    "viewAll": "Alle ansehen",
+    "usageTrend": "Nutzungstrend",
+    "day": "Tag",
+    "week": "Woche",
+    "month": "Monat"
   },
   "apiKeys": {
     "title": "API-Schlüssel",
@@ -238,7 +244,8 @@
     "importExistingKey": "Bestehenden Schlüssel importieren",
     "createViaApi": "Via API erstellen",
     "importAndSync": "Importieren und synchronisieren",
-    "callApiCreate": "API aufrufen zum Erstellen"
+    "callApiCreate": "API aufrufen zum Erstellen",
+    "deleteWarning": "Nach dem Löschen kann es nicht wiederhergestellt werden. Alle Dienste, die diesen Schlüssel verwenden, funktionieren nicht mehr."
   },
   "members": {
     "title": "Teammitglieder",
@@ -411,6 +418,175 @@
     "ctaSubtitle": "Kostenlose Registrierung, erleben Sie sofort die leistungsstarken KI-Ressourcenverwaltungsfunktionen",
     "startNow": "Jetzt starten",
     "allRightsReserved": "Alle Rechte vorbehalten"
+  },
+  "platformAccounts": {
+    "title": "Plattformkonto-Konfiguration",
+    "description": "Konfigurieren Sie Administratorkonten für OpenAI, Claude, OpenRouter, Volcengine und andere Plattformen, um Schlüssel über API zu erstellen und zu verwalten",
+    "addAccount": "Konto hinzufügen",
+    "addAccountModal": "Plattformkonto hinzufügen",
+    "editAccountModal": "Plattformkonto bearbeiten",
+    "addFirstAccount": "Erstes Konto hinzufügen",
+    "updateSuccessMessage": "Konto erfolgreich aktualisiert",
+    "platformCannotChange": "Plattformtyp kann im Bearbeitungsmodus nicht geändert werden",
+    "adminApiKeyPlaceholderEdit": "Leer lassen, um aktuellen API-Schlüssel beizubehalten",
+    "adminApiKeyHintEdit": "Leer lassen, um aktuellen API-Schlüssel beizubehalten, neuen API-Schlüssel eingeben zum Aktualisieren",
+    "noAccounts": "Keine Plattformkonten konfiguriert",
+    "noAccountsDesc": "Nach dem Hinzufügen von Plattformkonten können Sie Schlüssel automatisch über API erstellen und verwalten",
+    "platform": "Plattform",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "Volcengine",
+    "accountName": "Kontoname",
+    "accountNamePlaceholder": "z.B. Firmen-Hauptkonto",
+    "adminApiKey": "Admin-API-Schlüssel",
+    "adminApiKeyPlaceholder": "{{platform}} Admin-API-Schlüssel eingeben",
+    "adminApiKeyHint": "Administrator-Schlüssel zum Erstellen und Verwalten von Unterschlüsseln über API",
+    "projectId": "Projekt-ID",
+    "projectIdPlaceholder": "OpenAI Projekt-ID eingeben",
+    "projectIdHint": "OpenAI Projekt-ID zum Erstellen und Verwalten von API-Schlüsseln",
+    "organizationId": "Organisations-ID",
+    "organizationIdOptional": "Optional",
+    "organizationIdPlaceholder": "Organisations-ID eingeben (optional)",
+    "configuring": "Konfigurieren...",
+    "saveAndVerify": "Speichern und Verifizieren",
+    "statusActive": "Aktiv",
+    "balance": "Guthaben",
+    "errorAccountNameRequired": "Bitte Kontoname eingeben",
+    "errorAdminApiKeyRequired": "Bitte Admin-API-Schlüssel eingeben",
+    "errorProjectIdRequired": "Bitte Projekt-ID eingeben",
+    "errorConfigFailed": "Konfiguration fehlgeschlagen",
+    "successMessage": "Plattformkonto erfolgreich konfiguriert!",
+    "confirmDelete": "Möchten Sie diese Plattformkonto-Konfiguration wirklich löschen? Nach dem Löschen können keine neuen Schlüssel über API erstellt werden.",
+    "deleteNotImplemented": "Löschfunktion noch nicht implementiert",
+    "guideTitle": "Wie erhalte ich einen Admin-API-Schlüssel?",
+    "guideSubtitle": "Klicken Sie, um die Schritt-für-Schritt-Anleitung für jede Plattform anzuzeigen",
+    "openConsole": "Konsole öffnen",
+    "guide": {
+      "openai": {
+        "step1": "Melden Sie sich bei OpenAI Platform an (platform.openai.com)",
+        "step2": "Gehen Sie zu Settings → Organization → API Keys",
+        "step3": "Klicken Sie auf \"Create new secret key\", wählen Sie \"All\" Berechtigungen",
+        "step4": "Kopieren Sie die Project ID aus Settings → Organization → Projects",
+        "note": "OpenAI benötigt sowohl Admin-API-Schlüssel als auch Project ID. Stellen Sie sicher, dass Sie Organisationsadministrator-Berechtigungen haben."
+      },
+      "anthropic": {
+        "step1": "Melden Sie sich bei Anthropic Console an (console.anthropic.com)",
+        "step2": "Gehen Sie zu Settings → API Keys",
+        "step3": "Klicken Sie auf \"Create Key\" und kopieren Sie den generierten Schlüssel",
+        "note": "Anthropic API-Schlüssel wird nur einmal bei der Erstellung angezeigt. Bitte sicher aufbewahren."
+      },
+      "openrouter": {
+        "step1": "Melden Sie sich bei OpenRouter an (openrouter.ai)",
+        "step2": "Klicken Sie auf Ihr Avatar → Keys",
+        "step3": "Klicken Sie auf \"Create Key\" und kopieren Sie den generierten Schlüssel"
+      },
+      "volcengine": {
+        "step1": "Melden Sie sich bei Volcengine Console an (console.volcengine.com)",
+        "step2": "Klicken Sie auf Ihr Avatar → API-Zugriffsschlüssel",
+        "step3": "Klicken Sie auf \"Erstellen\", um AccessKey ID und Secret AccessKey zu generieren",
+        "step4": "Kopieren Sie sowohl AccessKey ID (AK) als auch Secret AccessKey (SK)",
+        "note": "Volcengine benötigt sowohl AK als auch SK. Der SK wird nur einmal angezeigt, bitte sofort speichern."
+      }
+    }
+  },
+  "alerts": {
+    "title": "Alarme",
+    "noAlerts": "Keine Alarme",
+    "markAsRead": "Als gelesen markieren",
+    "markAsResolved": "Als gelöst markieren",
+    "markAllAsRead": "Alle als gelesen markieren",
+    "unreadCount": "Ungelesene Alarme",
+    "types": {
+      "key_expiring": "Schlüssel läuft ab",
+      "low_balance": "Niedriges Guthaben",
+      "high_usage": "Hohe Nutzung",
+      "key_error": "Schlüsselfehler"
+    },
+    "severities": {
+      "info": "Info",
+      "warning": "Warnung",
+      "error": "Fehler"
+    },
+    "keyExpiring": {
+      "title": "API-Schlüssel läuft bald ab",
+      "message": "API-Schlüssel \"{name}\" läuft in {days} Tagen ab ({date})"
+    },
+    "lowBalance": {
+      "title": "Niedriger Kontostand",
+      "message": "Plattformkonto \"{name}\" ({platform}) hat einen Kontostand von {balance}, unter dem Schwellenwert {threshold}"
+    },
+    "keyError": {
+      "title": "API-Schlüssel-Fehler",
+      "message": "API-Schlüssel \"{name}\" Status: {status}"
+    },
+    "highUsage": {
+      "title": "Hohe Nutzung",
+      "message": "API-Schlüssel \"{name}\" monatliche Nutzung {usage} überschreitet Schwellenwert {threshold}"
+    }
+  },
+  "activityLog": {
+    "title": "Aktivitätsprotokoll",
+    "subtitle": "Alle API-Schlüssel-Operationen anzeigen",
+    "noLogs": "Keine Aktivitätsprotokolle",
+    "time": "Zeit",
+    "action": "Aktion",
+    "key": "Schlüssel",
+    "status": "Status",
+    "details": "Details",
+    "filterByKey": "Nach Schlüssel filtern",
+    "filterByAction": "Nach Aktion filtern",
+    "actions": {
+      "create": "Erstellen",
+      "delete": "Löschen",
+      "update": "Aktualisieren",
+      "sync": "Synchronisieren",
+      "import": "Importieren"
+    }
+  },
+  "team": {
+    "title": "Teammitglieder",
+    "subtitle": "Teammitglieder und Berechtigungen verwalten",
+    "inviteMember": "Mitglied einladen",
+    "totalMembers": "Gesamtmitglieder",
+    "activeMembers": "Aktive Mitglieder",
+    "invitedMembers": "Eingeladen",
+    "roleOwner": "Besitzer",
+    "roleAdmin": "Administrator",
+    "roleMember": "Mitglied",
+    "roleViewer": "Betrachter",
+    "statusActive": "Aktiv",
+    "statusInvited": "Eingeladen",
+    "statusDisabled": "Deaktiviert",
+    "tableHeaderMember": "Mitglied",
+    "tableHeaderRole": "Rolle",
+    "tableHeaderStatus": "Status",
+    "tableHeaderActions": "Aktionen",
+    "inviteModalTitle": "Mitglied einladen",
+    "inviteEmailLabel": "E-Mail",
+    "inviteNameLabel": "Name",
+    "inviteNamePlaceholder": "Optional",
+    "inviteRoleLabel": "Rolle",
+    "roleAdminDescription": "Kann Mitglieder und alle Schlüssel verwalten",
+    "roleMemberDescription": "Kann Schlüssel anzeigen und verwalten",
+    "roleViewerDescription": "Nur Anzeige",
+    "sendInvite": "Einladung senden",
+    "emailRequired": "Bitte E-Mail eingeben",
+    "inviteSuccess": "Einladung gesendet",
+    "inviteFailed": "Einladung fehlgeschlagen",
+    "loadMembersFailed": "Mitglieder laden fehlgeschlagen",
+    "roleUpdateSuccess": "Rolle aktualisiert",
+    "roleUpdateFailed": "Rolle aktualisieren fehlgeschlagen",
+    "removeConfirmTitle": "Entfernung bestätigen",
+    "removeConfirmMessage": "Möchten Sie dieses Mitglied wirklich entfernen? Es verliert den Zugriff auf Teamressourcen.",
+    "removeButton": "Entfernen",
+    "removeMemberTooltip": "Mitglied entfernen",
+    "removeSuccess": "Mitglied entfernt",
+    "removeFailed": "Entfernen fehlgeschlagen",
+    "resendInviteTooltip": "Einladung erneut senden",
+    "resendInviteSuccess": "Einladung erneut gesendet",
+    "resendInviteFailed": "Erneut senden fehlgeschlagen",
+    "noMembers": "Keine Mitglieder",
+    "inviteFirstMember": "Erstes Mitglied einladen"
   }
 }
-

@@ -51,6 +51,8 @@
     "dashboard": "ダッシュボード",
     "apiKeys": "キー管理",
     "members": "メンバー管理",
+    "platformAccounts": "プラットフォームアカウント",
+    "activityLog": "アクティビティログ",
     "settings": "設定",
     "profile": "プロフィール",
     "logout": "ログアウト",
@@ -79,7 +81,11 @@
     "noKeys": "キーがありません",
     "loadingData": "データを読み込み中...",
     "keysCount": "{{count}} 個のキー",
-    "viewAll": "すべて表示"
+    "viewAll": "すべて表示",
+    "usageTrend": "使用量トレンド",
+    "day": "日別",
+    "week": "週別",
+    "month": "月別"
   },
   "apiKeys": {
     "title": "キー管理",
@@ -203,19 +209,7 @@
     "createViaApi": "API経由で作成",
     "importAndSync": "インポートして同期",
     "callApiCreate": "APIを呼び出して作成",
-    "addApiKey": "API キーを追加",
-    "addApiKeyDesc": "既存のキーをインポートするか、API経由で新しいキーを作成",
-    "keyNameDesc": "このAPIキーの用途を識別するために使用",
-    "apiKeyLabel": "API キー",
-    "apiKeyInputDesc": "既存のAPIキーを入力すると、システムが検証し、使用量データを自動的に同期します",
-    "claudeApiKeyNotSupported": "Claude Admin APIはAPIキーの作成をサポートしていません。",
-    "autoCreateApiKeyDesc": "システムは{{platform}}のAdmin API経由で新しいAPIキーを自動的に作成します。",
-    "apiKeyCreatedSuccess": "API キーが作成されました！",
-    "keyShownOnce": "キーは1回だけ表示されます。すぐにコピーして保存してください",
-    "keepKeySafe": "このキーを安全に保管してください",
-    "keyShownOnceWarning": "このAPIキーは1回だけ表示されます。閉じた後は、完全なキーを再度表示することはできません。すぐにコピーして安全に保管してください。",
-    "fillApiKey": "API キーを入力してください",
-    "platformKeys": "{{platform}} キー"
+    "deleteWarning": "削除後は復元できません。このキーを使用するすべてのサービスが正常に動作しなくなります。"
   },
   "members": {
     "title": "チームメンバー",
@@ -424,6 +418,175 @@
     "ctaSubtitle": "無料登録で、強力なAIリソース管理機能をすぐに体験",
     "startNow": "今すぐ始める",
     "allRightsReserved": "全著作権所有"
+  },
+  "platformAccounts": {
+    "title": "プラットフォームアカウント設定",
+    "description": "OpenAI、Claude、OpenRouter、火山エンジンなどのプラットフォームの管理者アカウントを設定し、API経由でキーを作成・管理",
+    "addAccount": "アカウントを追加",
+    "addAccountModal": "プラットフォームアカウントを追加",
+    "editAccountModal": "プラットフォームアカウントを編集",
+    "addFirstAccount": "最初のアカウントを追加",
+    "updateSuccessMessage": "アカウント更新成功",
+    "platformCannotChange": "編集モードではプラットフォームを変更できません",
+    "adminApiKeyPlaceholderEdit": "空白のままで現在のAPIキーを維持",
+    "adminApiKeyHintEdit": "空白のままで現在のAPIキーを維持、新しいAPIキーを入力して更新",
+    "noAccounts": "プラットフォームアカウント未設定",
+    "noAccountsDesc": "プラットフォームアカウントを追加後、APIでキーを自動作成・管理可能",
+    "platform": "プラットフォーム",
+    "openai": "OpenAI",
+    "anthropic": "Claude",
+    "openrouter": "OpenRouter",
+    "volcengine": "火山エンジン",
+    "accountName": "アカウント名",
+    "accountNamePlaceholder": "例：会社メインアカウント",
+    "adminApiKey": "Admin API キー",
+    "adminApiKeyPlaceholder": "{{platform}} Admin API キーを入力",
+    "adminApiKeyHint": "API経由でサブキーを作成・管理するための管理者キー",
+    "projectId": "プロジェクトID",
+    "projectIdPlaceholder": "OpenAI プロジェクトIDを入力",
+    "projectIdHint": "OpenAI プロジェクトID、APIキーの作成・管理に使用",
+    "organizationId": "組織ID",
+    "organizationIdOptional": "任意",
+    "organizationIdPlaceholder": "組織IDを入力（任意）",
+    "configuring": "設定中...",
+    "saveAndVerify": "保存して検証",
+    "statusActive": "アクティブ",
+    "balance": "残高",
+    "errorAccountNameRequired": "アカウント名を入力してください",
+    "errorAdminApiKeyRequired": "Admin API キーを入力してください",
+    "errorProjectIdRequired": "プロジェクトIDを入力してください",
+    "errorConfigFailed": "設定に失敗しました",
+    "successMessage": "プラットフォームアカウント設定成功！",
+    "confirmDelete": "このプラットフォームアカウント設定を削除してもよろしいですか？削除後、APIでの新規キー作成ができなくなります。",
+    "deleteNotImplemented": "削除機能は未実装",
+    "guideTitle": "Admin API キーの取得方法",
+    "guideSubtitle": "クリックして各プラットフォームの詳細手順を表示",
+    "openConsole": "コンソールを開く",
+    "guide": {
+      "openai": {
+        "step1": "OpenAI プラットフォームにログイン (platform.openai.com)",
+        "step2": "Settings → Organization → API Keysに移動",
+        "step3": "「Create new secret key」をクリック、「All」権限を選択",
+        "step4": "Settings → Organization → ProjectsからProject IDをコピー",
+        "note": "OpenAIはAdmin API キーとProject ID両方が必要です。組織管理者権限があることを確認してください。"
+      },
+      "anthropic": {
+        "step1": "Anthropic コンソールにログイン (console.anthropic.com)",
+        "step2": "Settings → API Keysに移動",
+        "step3": "「Create Key」をクリックして生成されたキーをコピー",
+        "note": "Anthropic API キーは作成時に1回だけ表示されます。安全に保管してください。"
+      },
+      "openrouter": {
+        "step1": "OpenRouterにログイン (openrouter.ai)",
+        "step2": "アバターをクリック → Keys",
+        "step3": "「Create Key」をクリックして生成されたキーをコピー"
+      },
+      "volcengine": {
+        "step1": "火山エンジンコンソールにログイン (console.volcengine.com)",
+        "step2": "アバターをクリック → API アクセスキー",
+        "step3": "「新規作成」をクリックしてAccessKey IDとSecret AccessKeyを生成",
+        "step4": "AccessKey ID (AK) と Secret AccessKey (SK) 両方をコピー",
+        "note": "火山エンジンはAKとSK両方のキーが必要です。SKは1回だけ表示されます。すぐに保存してください。"
+      }
+    }
+  },
+  "alerts": {
+    "title": "アラート",
+    "noAlerts": "アラートはありません",
+    "markAsRead": "既読にする",
+    "markAsResolved": "解決済みにする",
+    "markAllAsRead": "すべて既読にする",
+    "unreadCount": "未読アラート",
+    "types": {
+      "key_expiring": "キー期限切れ間近",
+      "low_balance": "残高不足",
+      "high_usage": "高使用量",
+      "key_error": "キーエラー"
+    },
+    "severities": {
+      "info": "情報",
+      "warning": "警告",
+      "error": "エラー"
+    },
+    "keyExpiring": {
+      "title": "APIキー有効期限間近",
+      "message": "APIキー「{name}」は{days}日後に期限切れになります（{date}）"
+    },
+    "lowBalance": {
+      "title": "アカウント残高不足",
+      "message": "プラットフォームアカウント「{name}」({platform})の残高は{balance}で、閾値{threshold}を下回っています"
+    },
+    "keyError": {
+      "title": "APIキーエラー",
+      "message": "APIキー「{name}」のステータス: {status}"
+    },
+    "highUsage": {
+      "title": "高使用量",
+      "message": "APIキー「{name}」の今月の使用量{usage}が閾値{threshold}を超えました"
+    }
+  },
+  "activityLog": {
+    "title": "アクティビティログ",
+    "subtitle": "すべてのAPIキー操作履歴を表示",
+    "noLogs": "アクティビティログはありません",
+    "time": "時間",
+    "action": "アクション",
+    "key": "キー",
+    "status": "ステータス",
+    "details": "詳細",
+    "filterByKey": "キーでフィルター",
+    "filterByAction": "アクションでフィルター",
+    "actions": {
+      "create": "作成",
+      "delete": "削除",
+      "update": "更新",
+      "sync": "同期",
+      "import": "インポート"
+    }
+  },
+  "team": {
+    "title": "チームメンバー",
+    "subtitle": "チームメンバーと権限を管理",
+    "inviteMember": "メンバーを招待",
+    "totalMembers": "総メンバー数",
+    "activeMembers": "アクティブメンバー",
+    "invitedMembers": "招待中",
+    "roleOwner": "オーナー",
+    "roleAdmin": "管理者",
+    "roleMember": "メンバー",
+    "roleViewer": "閲覧者",
+    "statusActive": "アクティブ",
+    "statusInvited": "招待中",
+    "statusDisabled": "無効",
+    "tableHeaderMember": "メンバー",
+    "tableHeaderRole": "役割",
+    "tableHeaderStatus": "ステータス",
+    "tableHeaderActions": "操作",
+    "inviteModalTitle": "メンバーを招待",
+    "inviteEmailLabel": "メールアドレス",
+    "inviteNameLabel": "名前",
+    "inviteNamePlaceholder": "任意",
+    "inviteRoleLabel": "役割",
+    "roleAdminDescription": "メンバーとすべてのキーを管理可能",
+    "roleMemberDescription": "キーの表示と管理が可能",
+    "roleViewerDescription": "閲覧のみ",
+    "sendInvite": "招待を送信",
+    "emailRequired": "メールアドレスを入力してください",
+    "inviteSuccess": "招待を送信しました",
+    "inviteFailed": "招待の送信に失敗しました",
+    "loadMembersFailed": "メンバーの読み込みに失敗しました",
+    "roleUpdateSuccess": "役割を更新しました",
+    "roleUpdateFailed": "役割の更新に失敗しました",
+    "removeConfirmTitle": "削除の確認",
+    "removeConfirmMessage": "このメンバーを削除してもよろしいですか？チームリソースにアクセスできなくなります。",
+    "removeButton": "削除",
+    "removeMemberTooltip": "メンバーを削除",
+    "removeSuccess": "メンバーを削除しました",
+    "removeFailed": "削除に失敗しました",
+    "resendInviteTooltip": "招待を再送信",
+    "resendInviteSuccess": "招待を再送信しました",
+    "resendInviteFailed": "再送信に失敗しました",
+    "noMembers": "メンバーがいません",
+    "inviteFirstMember": "最初のメンバーを招待"
   }
 }
-
