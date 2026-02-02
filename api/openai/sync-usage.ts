@@ -32,12 +32,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let adminKey = admin_key;
     let finalPlatformAccountId = platform_account_id;
+    let effectiveTenantId = userInfo.tenantId;
 
     // 如果没有提供 admin_key，从数据库获取
     if (!adminKey && platform_account_id) {
       const { data: account, error: accountError } = await supabase
         .from('llm_platform_accounts')
-        .select('admin_api_key_encrypted, status, platform')
+        .select('admin_api_key_encrypted, status, platform, tenant_id')
         .eq('id', platform_account_id)
         .single();
 
@@ -54,6 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       adminKey = account.admin_api_key_encrypted;
+      // 如果是 Cron 调用（userInfo.tenantId 为 null），使用账号的 tenant_id
+      if (!effectiveTenantId && account.tenant_id) {
+        effectiveTenantId = account.tenant_id;
+      }
     }
 
     if (!adminKey) {
@@ -167,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           api_key_suffix: keySuffix,
           status: 'active',
           creation_method: 'sync',
-          tenant_id: userInfo.tenantId,
+          tenant_id: effectiveTenantId,
           last_synced_at: new Date().toISOString(),
         });
       }

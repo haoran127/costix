@@ -353,8 +353,8 @@ function formatCurrency(amount: number | null | undefined, platform?: string): s
   return currencySymbol + amount.toFixed(2);
 }
 
-// 格式化日期
-function formatDate(dateStr: string): string {
+// 格式化日期 - 需要传入翻译函数
+function formatDate(dateStr: string, t: (key: string, options?: Record<string, unknown>) => string, locale: string = 'en'): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -364,15 +364,15 @@ function formatDate(dateStr: string): string {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     if (hours === 0) {
       const minutes = Math.floor(diff / (1000 * 60));
-      return `${minutes} 分钟前`;
+      return t('common.minutesAgo', { count: minutes });
     }
-    return `${hours} 小时前`;
+    return t('common.hoursAgo', { count: hours });
   } else if (days === 1) {
-    return '昨天';
+    return t('common.yesterday');
   } else if (days < 7) {
-    return `${days} 天前`;
+    return t('common.daysAgo', { count: days });
   }
-  return date.toLocaleDateString('zh-CN');
+  return date.toLocaleDateString(locale === 'zh-CN' ? 'zh-CN' : 'en-US');
 }
 
 // 获取状态配置
@@ -396,7 +396,7 @@ interface ApiKeysProps {
 }
 
 export default function ApiKeys({ platform }: ApiKeysProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -426,7 +426,8 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   // 高级筛选状态
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState<string>(''); // 责任人筛选
-  const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string; end: string }>({ start: '', end: '' }); // 时间范围筛选
+  const [monthFilter, setMonthFilter] = useState<string>(''); // 账单月份 (格式: YYYY-MM)
+  const [usageFilter, setUsageFilter] = useState<'all' | 'has_usage' | 'no_usage'>('all'); // 用量筛选
   const [tokenRangeFilter, setTokenRangeFilter] = useState<{ min: string; max: string }>({ min: '', max: '' }); // 用量范围筛选
 
   // 同步顶部平台筛选
@@ -594,7 +595,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
       exportToExcel(keysToExport, API_KEYS_EXPORT_COLUMNS, filename, 'API Keys');
     }
     
-    showToast(`已导出 ${keysToExport.length} 个 API Key`, 'success');
+    showToast(t('common.exportedCount', { count: keysToExport.length }), 'success');
   }, [apiKeys, selectedKeyIds, showToast]);
 
   // 加载数据
@@ -639,7 +640,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
   const handleBatchDelete = useCallback(async () => {
     if (selectedKeyIds.size === 0) return;
     
-    if (!confirm(`确定要删除选中的 ${selectedKeyIds.size} 个 API Key 吗？此操作不可撤销。`)) {
+    if (!confirm(t('apiKeys.confirmBatchDelete', { count: selectedKeyIds.size }))) {
       return;
     }
     
@@ -836,15 +837,26 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
           return false;
         }
       }
-      // 创建时间范围筛选
-      if (dateRangeFilter.start || dateRangeFilter.end) {
-        const keyDate = new Date(key.createdAt).getTime();
-        if (dateRangeFilter.start && keyDate < new Date(dateRangeFilter.start).getTime()) {
-          return false;
+      // 月份筛选（仅当前月有效，历史月份暂不支持）
+      if (monthFilter) {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        // 如果选择的是当前月，筛选有用量的 Key
+        if (monthFilter === currentMonth) {
+          if ((key.tokenUsage.monthly || 0) === 0) return false;
         }
-        if (dateRangeFilter.end && keyDate > new Date(dateRangeFilter.end + 'T23:59:59').getTime()) {
-          return false;
+        // 如果选择的是历史月份，根据创建时间筛选（Key 必须在该月之前创建）
+        else {
+          const keyCreated = new Date(key.createdAt);
+          const filterDate = new Date(monthFilter + '-01');
+          if (keyCreated > filterDate) return false;
         }
+      }
+      // 用量筛选
+      if (usageFilter !== 'all') {
+        const hasUsage = (key.tokenUsage.monthly || 0) > 0;
+        if (usageFilter === 'has_usage' && !hasUsage) return false;
+        if (usageFilter === 'no_usage' && hasUsage) return false;
       }
       // 用量范围筛选 (Monthly Tokens)
       if (tokenRangeFilter.min || tokenRangeFilter.max) {
@@ -885,7 +897,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
     }
 
     return filtered;
-  }, [apiKeys, searchQuery, platformFilter, statusFilter, ownerFilter, dateRangeFilter, tokenRangeFilter, sortField, sortDirection]);
+  }, [apiKeys, searchQuery, platformFilter, statusFilter, ownerFilter, monthFilter, usageFilter, tokenRangeFilter, sortField, sortDirection]);
 
   // 处理排序点击
   const handleSort = (field: 'balance' | 'tokens') => {
@@ -2014,14 +2026,14 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             <div className="relative group">
               <button 
                 className="btn btn-secondary whitespace-nowrap relative"
-                title={canExport ? (selectedKeyIds.size > 0 ? `导出选中的 ${selectedKeyIds.size} 个` : '导出全部') : '升级解锁导出功能'}
+                title={canExport ? (selectedKeyIds.size > 0 ? t('common.exportSelected', { count: selectedKeyIds.size }) : t('common.exportAll')) : t('common.unlockExport')}
                 onClick={!canExport ? () => {
                   setUpgradeFeature('export');
                   setShowUpgradeModal(true);
                 } : undefined}
               >
                 <Icon icon="mdi:download" width={18} />
-                导出
+                {t('common.export')}
                 <Icon icon="mdi:chevron-down" width={16} className="ml-1" />
                 {!canExport && (
                   <Icon icon="mdi:lock" width={12} className="absolute -top-1 -right-1 text-orange-500" />
@@ -2034,14 +2046,14 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                     onClick={() => handleExport('csv')}
                   >
                     <Icon icon="mdi:file-delimited" width={16} />
-                    导出 CSV
+                    {t('common.exportCsv')}
                   </button>
                   <button
                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
                     onClick={() => handleExport('excel')}
                   >
                     <Icon icon="mdi:file-excel" width={16} />
-                    导出 Excel
+                    {t('common.exportExcel')}
                   </button>
                 </div>
               )}
@@ -2056,16 +2068,16 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               <option value="active">{t('apiKeys.normalStatus')}</option>
               <option value="inactive">{t('apiKeys.inactive')}</option>
               <option value="low_balance">{t('apiKeys.lowBalance')}</option>
-              <option value="expired">已过期</option>
+              <option value="expired">{t('apiKeys.expired')}</option>
             </select>
             {/* 高级筛选按钮 */}
             <button 
-              className={`btn ${showAdvancedFilter || ownerFilter || dateRangeFilter.start || dateRangeFilter.end || tokenRangeFilter.min || tokenRangeFilter.max ? 'btn-primary' : 'btn-secondary'} whitespace-nowrap`}
+              className={`btn ${showAdvancedFilter || ownerFilter || monthFilter || usageFilter !== 'all' || tokenRangeFilter.min || tokenRangeFilter.max ? 'btn-primary' : 'btn-secondary'} whitespace-nowrap`}
               onClick={() => setShowAdvancedFilter(!showAdvancedFilter)}
             >
               <Icon icon="mdi:filter-variant" width={18} />
-              高级筛选
-              {(ownerFilter || dateRangeFilter.start || dateRangeFilter.end || tokenRangeFilter.min || tokenRangeFilter.max) && (
+              {t('apiKeys.advancedFilter')}
+              {(ownerFilter || monthFilter || usageFilter !== 'all' || tokenRangeFilter.min || tokenRangeFilter.max) && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs bg-white/20 rounded-full">!</span>
               )}
             </button>
@@ -2096,51 +2108,72 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
         {showAdvancedFilter && (
           <div className="px-4 py-4 bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 账单月份 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {t('apiKeys.billingMonth')}
+                </label>
+                <select
+                  value={monthFilter}
+                  onChange={(e) => setMonthFilter(e.target.value)}
+                  className="form-select w-full text-sm"
+                >
+                  <option value="">{t('apiKeys.allMonths')}</option>
+                  {(() => {
+                    const months = [];
+                    const now = new Date();
+                    for (let i = 0; i < 12; i++) {
+                      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                      const label = date.toLocaleDateString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
+                      const isCurrent = i === 0;
+                      months.push(
+                        <option key={value} value={value}>
+                          {label}{isCurrent ? ` (${t('apiKeys.currentMonth')})` : ''}
+                        </option>
+                      );
+                    }
+                    return months;
+                  })()}
+                </select>
+              </div>
               {/* 责任人筛选 */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  责任人
+                  {t('apiKeys.owner')}
                 </label>
                 <input
                   type="text"
-                  placeholder="输入责任人姓名"
+                  placeholder={t('apiKeys.ownerNamePlaceholder')}
                   value={ownerFilter}
                   onChange={(e) => setOwnerFilter(e.target.value)}
                   className="form-input w-full text-sm"
                 />
               </div>
-              {/* 创建时间范围 */}
+              {/* 用量筛选 */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  创建时间（开始）
+                  {t('apiKeys.usageFilter')}
                 </label>
-                <input
-                  type="date"
-                  value={dateRangeFilter.start}
-                  onChange={(e) => setDateRangeFilter(prev => ({ ...prev, start: e.target.value }))}
-                  className="form-input w-full text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  创建时间（结束）
-                </label>
-                <input
-                  type="date"
-                  value={dateRangeFilter.end}
-                  onChange={(e) => setDateRangeFilter(prev => ({ ...prev, end: e.target.value }))}
-                  className="form-input w-full text-sm"
-                />
+                <select
+                  value={usageFilter}
+                  onChange={(e) => setUsageFilter(e.target.value as 'all' | 'has_usage' | 'no_usage')}
+                  className="form-select w-full text-sm"
+                >
+                  <option value="all">{t('apiKeys.allKeys')}</option>
+                  <option value="has_usage">{t('apiKeys.hasUsage')}</option>
+                  <option value="no_usage">{t('apiKeys.noUsage')}</option>
+                </select>
               </div>
               {/* 用量范围 */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  月用量范围 (K tokens)
+                  {t('apiKeys.monthlyUsageRange')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
-                    placeholder="最小"
+                    placeholder={t('apiKeys.minLabel')}
                     value={tokenRangeFilter.min}
                     onChange={(e) => setTokenRangeFilter(prev => ({ ...prev, min: e.target.value }))}
                     className="form-input w-full text-sm"
@@ -2148,7 +2181,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   <span className="text-gray-400">-</span>
                   <input
                     type="number"
-                    placeholder="最大"
+                    placeholder={t('apiKeys.maxLabel')}
                     value={tokenRangeFilter.max}
                     onChange={(e) => setTokenRangeFilter(prev => ({ ...prev, max: e.target.value }))}
                     className="form-input w-full text-sm"
@@ -2157,17 +2190,18 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               </div>
             </div>
             {/* 清除筛选按钮 */}
-            {(ownerFilter || dateRangeFilter.start || dateRangeFilter.end || tokenRangeFilter.min || tokenRangeFilter.max) && (
+            {(ownerFilter || monthFilter || usageFilter !== 'all' || tokenRangeFilter.min || tokenRangeFilter.max) && (
               <div className="mt-3 flex justify-end">
                 <button
                   className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   onClick={() => {
                     setOwnerFilter('');
-                    setDateRangeFilter({ start: '', end: '' });
+                    setMonthFilter('');
+                    setUsageFilter('all');
                     setTokenRangeFilter({ min: '', max: '' });
                   }}
                 >
-                  清除所有筛选条件
+                  {t('apiKeys.clearAllFilters')}
                 </button>
               </div>
             )}
@@ -2185,7 +2219,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 onClick={clearSelection}
               >
-                取消选择
+                {t('common.clearSelection')}
               </button>
             </div>
             <div className="flex items-center gap-2 ml-auto">
@@ -2197,7 +2231,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                     disabled={batchAssigning}
                   >
                     <Icon icon="mdi:account-edit" width={16} />
-                    分配责任人
+                    {t('apiKeys.assignOwner')}
                   </button>
                   <button
                     className="btn btn-secondary text-sm py-1.5 px-3 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
@@ -2524,15 +2558,15 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                             {new Date(key.expiresAt) < new Date() ? (
                               <span className="flex items-center gap-1">
                                 <Icon icon="mdi:alert-circle" width={14} />
-                                已过期
+                                {t('apiKeys.expired')}
                               </span>
                             ) : (
-                              formatDate(key.expiresAt)
+                              formatDate(key.expiresAt, t, i18n.language)
                             )}
                           </div>
                           {new Date(key.expiresAt) > new Date() && new Date(key.expiresAt) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) && (
                             <div className="text-xs text-orange-500">
-                              {Math.ceil((new Date(key.expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000))} 天后过期
+                              {t('common.expiresInDays', { count: Math.ceil((new Date(key.expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) })}
                             </div>
                           )}
                         </div>
@@ -2651,17 +2685,17 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   </div>
                   <div className="info-row">
                     <div className="info-label">{t('apiKeys.createdAt')}</div>
-                    <div className="info-value">{new Date(selectedKey.createdAt).toLocaleString('zh-CN')}</div>
+                    <div className="info-value">{new Date(selectedKey.createdAt).toLocaleString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US')}</div>
                   </div>
                   <div className="info-row">
                     <div className="info-label">{t('apiKeys.lastUsed')}</div>
-                    <div className="info-value">{formatDate(selectedKey.lastUsedAt)}</div>
+                    <div className="info-value">{formatDate(selectedKey.lastUsedAt, t, i18n.language)}</div>
                   </div>
                   {selectedKey.expiresAt && (
                     <div className="info-row">
                       <div className="info-label">{t('apiKeys.expiresAt')}</div>
                       <div className="info-value text-orange-600">
-                        {new Date(selectedKey.expiresAt).toLocaleString('zh-CN')}
+                        {new Date(selectedKey.expiresAt).toLocaleString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US')}
                       </div>
                     </div>
                   )}
@@ -3206,7 +3240,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 onClick={() => setIsCreateOpen(false)}
                 disabled={isCreating}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button 
                 className="btn btn-primary" 
@@ -3397,7 +3431,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
             {/* 抽屉头部 */}
             <div className="drawer-header">
               <div>
-                <div className="font-semibold text-gray-800">设置责任人</div>
+                <div className="font-semibold text-gray-800">{t('apiKeys.setOwner')}</div>
                 <div className="text-xs text-gray-400 mt-0.5 truncate">{ownerTarget.name}</div>
               </div>
               <button 
@@ -3413,13 +3447,13 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               {/* 提示信息 */}
               <div className="flex items-center gap-2 text-blue-600 text-xs bg-blue-50 px-3 py-2 rounded-lg">
                 <Icon icon="mdi:information-outline" width={16} />
-                <span>请从团队成员中选择责任人。如果成员不存在，请先在"成员管理"页面添加成员。</span>
+                <span>{t('apiKeys.selectOwnerFromTeam')}</span>
               </div>
               
               {/* 团队成员选择 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  选择责任人 <span className="text-red-500">*</span>
+                  {t('apiKeys.selectOwnerRequired')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
@@ -3427,16 +3461,16 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   onChange={e => setSelectedOwnerId(e.target.value)}
                   autoFocus
                 >
-                  <option value="">-- 请选择团队成员 --</option>
+                  <option value="">{t('apiKeys.selectMemberPlaceholder')}</option>
                   {teamMembers.map(member => (
                     <option key={member.id} value={member.id}>
-                      {member.name || member.email} {member.status === 'invited' && '(待接受邀请)'}
+                      {member.name || member.email} {member.status === 'invited' && t('apiKeys.pendingInvite')}
                     </option>
                   ))}
                 </select>
                 {teamMembers.length === 0 && (
                   <div className="mt-2 text-xs text-gray-500">
-                    暂无团队成员，请先前往 <a href="/members" className="text-blue-500 hover:underline">成员管理</a> 添加成员。
+                    {t('apiKeys.noMembersYet')}
                   </div>
                 )}
               </div>
@@ -3456,11 +3490,11 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                     const result2 = await clearLLMApiKeyOwnerContact(ownerTarget.id);
                     
                     if (result1.success && result2.success) {
-                      showToast('已清除责任人信息', 'success');
+                      showToast(t('apiKeys.ownerCleared'), 'success');
                       await loadData(); // 重新加载数据
                       setShowOwnerModal(false);
                     } else {
-                      showToast(result1.error || result2.error || '清除失败', 'error');
+                      showToast(result1.error || result2.error || t('apiKeys.clearFailed'), 'error');
                     }
                   } finally {
                     setSavingOwner(false);
@@ -3468,7 +3502,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 }}
                 disabled={savingOwner || (!ownerTarget.owner && !ownerTarget.ownerName)}
               >
-                清除责任人
+                {t('apiKeys.clearOwner')}
               </button>
               
               <div className="flex gap-2">
@@ -3476,7 +3510,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   className="btn btn-secondary"
                   onClick={() => setShowOwnerModal(false)}
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
                 <button
                   className={`btn ${
@@ -3512,11 +3546,11 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                           });
                         }
                         
-                        showToast(`已设置责任人: ${selectedMember.name || selectedMember.email}`, 'success');
+                        showToast(t('apiKeys.ownerSetSuccess', { name: selectedMember.name || selectedMember.email }), 'success');
                         await loadData(); // 重新加载数据以更新显示
                         setShowOwnerModal(false);
                       } else {
-                        showToast(result.error || '保存失败', 'error');
+                        showToast(result.error || t('apiKeys.saveFailed'), 'error');
                       }
                     } finally {
                       setSavingOwner(false);
@@ -3529,7 +3563,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   ) : (
                     <Icon icon="mdi:check" width={16} />
                   )}
-                  保存
+                  {t('common.save')}
                 </button>
               </div>
             </div>
@@ -3549,8 +3583,8 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
               {/* 弹窗头部 */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
                 <div>
-                  <div className="font-semibold text-gray-800 dark:text-gray-100">批量分配责任人</div>
-                  <div className="text-xs text-gray-400 mt-0.5">将为 {selectedKeyIds.size} 个 Key 分配相同的责任人</div>
+                  <div className="font-semibold text-gray-800 dark:text-gray-100">{t('apiKeys.batchAssignOwner')}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{t('apiKeys.batchAssignOwnerDesc', { count: selectedKeyIds.size })}</div>
                 </div>
                 <button 
                   className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors" 
@@ -3565,13 +3599,13 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                 {/* 提示信息 */}
                 <div className="flex items-center gap-2 text-blue-600 text-xs bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
                   <Icon icon="mdi:information-outline" width={16} />
-                  <span>请从团队成员中选择责任人。</span>
+                  <span>{t('team.selectMemberHint')}</span>
                 </div>
                 
                 {/* 团队成员选择 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
-                    选择责任人 <span className="text-red-500">*</span>
+                    {t('apiKeys.selectOwnerRequired')} <span className="text-red-500">*</span>
                   </label>
                   <select
                     className="w-full h-10 px-3 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all"
@@ -3588,7 +3622,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   </select>
                   {teamMembers.length === 0 && (
                     <div className="mt-2 text-xs text-gray-500">
-                      暂无团队成员，请先前往成员管理页面添加成员。
+                      {t('apiKeys.noMembersYet')}
                     </div>
                   )}
                 </div>
@@ -3600,7 +3634,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   className="btn btn-secondary"
                   onClick={() => setShowBatchOwnerModal(false)}
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
                 <button
                   className={`btn ${
@@ -3620,7 +3654,7 @@ export default function ApiKeys({ platform }: ApiKeysProps) {
                   ) : (
                     <Icon icon="mdi:check" width={16} />
                   )}
-                  确认分配
+                  {t('apiKeys.confirmBatchAssign')}
                 </button>
               </div>
             </div>

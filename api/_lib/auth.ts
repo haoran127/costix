@@ -11,6 +11,18 @@ const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 
 /**
+ * 检查是否为 Cron 内部调用
+ */
+export function isCronInternalCall(req: VercelRequest): boolean {
+  const isCronHeader = req.headers['x-cron-internal'] === 'true';
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.replace('Bearer ', '');
+  
+  // 如果是内部调用且使用 service role key
+  return isCronHeader && token === SUPABASE_SERVICE_ROLE_KEY;
+}
+
+/**
  * 从请求中提取用户信息
  */
 export async function getUserFromRequest(req: VercelRequest): Promise<{
@@ -19,6 +31,16 @@ export async function getUserFromRequest(req: VercelRequest): Promise<{
   email: string | null;
 } | null> {
   try {
+    // 检查是否为 Cron 内部调用
+    if (isCronInternalCall(req)) {
+      // 内部调用返回系统用户
+      return {
+        userId: 'system-cron',
+        tenantId: null, // 会在具体 API 中从 platform_account 获取
+        email: 'cron@system.internal',
+      };
+    }
+
     // 从 Authorization header 获取 token
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

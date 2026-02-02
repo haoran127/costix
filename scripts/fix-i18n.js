@@ -34,7 +34,232 @@ const translations = {
     'de': 'Monat', 'fr': 'Mois', 'es': 'Mes', 'pt': 'Mês', 'ru': 'Месяц', 'id': 'Bulan'
   },
   
-  // API Keys
+  // Common
+  'common.clearSelection': {
+    'zh-TW': '取消選擇', 'ja': '選択解除', 'ko': '선택 해제',
+    'de': 'Auswahl aufheben', 'fr': 'Désélectionner', 'es': 'Deseleccionar',
+    'pt': 'Limpar seleção', 'ru': 'Снять выбор', 'id': 'Hapus pilihan'
+  },
+  'common.minutesAgo': {
+    'zh-TW': '{{count}} 分鐘前', 'ja': '{{count}} 分前', 'ko': '{{count}}분 전',
+    'de': 'Vor {{count}} Minuten', 'fr': 'Il y a {{count}} minutes', 'es': 'Hace {{count}} minutos',
+    'pt': 'Há {{count}} minutos', 'ru': '{{count}} минут назад', 'id': '{{count}} menit yang lalu'
+  },
+  'common.hoursAgo': {
+    'zh-TW': '{{count}} 小時前', 'ja': '{{count}} 時間前', 'ko': '{{count}}시간 전',
+    'de': 'Vor {{count}} Stunden', 'fr': 'Il y a {{count}} heures', 'es': 'Hace {{count}} horas',
+    'pt': 'Há {{count}} horas', 'ru': '{{count}} часов назад', 'id': '{{count}} jam yang lalu'
+  },
+  'common.yesterday': {
+    'zh-TW': '昨天', 'ja': '昨日', 'ko': '어제',
+    'de': 'Gestern', 'fr': 'Hier', 'es': 'Ayer', 'pt': 'Ontem', 'ru': 'Вчера', 'id': 'Kemarin'
+  },
+  'common.daysAgo': {
+    'zh-TW': '{{count}} 天前', 'ja': '{{count}} 日前', 'ko': '{{count}}일 전',
+    'de': 'Vor {{count}} Tagen', 'fr': 'Il y a {{count}} jours', 'es': 'Hace {{count}} días',
+    'pt': 'Há {{count}} dias', 'ru': '{{count}} дней назад', 'id': '{{count}} hari yang lalu'
+  },
+  'common.expiresInDays': {
+    'zh-TW': '{{count}} 天後過期', 'ja': '{{count}} 日後に期限切れ', 'ko': '{{count}}일 후 만료',
+    'de': 'Läuft in {{count}} Tagen ab', 'fr': 'Expire dans {{count}} jours', 'es': 'Expira en {{count}} días',
+    'pt': 'Expira em {{count}} dias', 'ru': 'Истекает через {{count}} дней', 'id': 'Kedaluwarsa dalam {{count}} hari'
+  },
+  'common.export': {
+    'zh-TW': '匯出', 'ja': 'エクスポート', 'ko': '내보내기',
+    'de': 'Exportieren', 'fr': 'Exporter', 'es': 'Exportar', 'pt': 'Exportar', 'ru': 'Экспорт', 'id': 'Ekspor'
+  },
+  'common.exportCsv': {
+    'zh-TW': '匯出 CSV', 'ja': 'CSV エクスポート', 'ko': 'CSV 내보내기',
+    'de': 'Als CSV exportieren', 'fr': 'Exporter en CSV', 'es': 'Exportar CSV', 'pt': 'Exportar CSV', 'ru': 'Экспорт CSV', 'id': 'Ekspor CSV'
+  },
+  'common.exportExcel': {
+    'zh-TW': '匯出 Excel', 'ja': 'Excel エクスポート', 'ko': 'Excel 내보내기',
+    'de': 'Als Excel exportieren', 'fr': 'Exporter en Excel', 'es': 'Exportar Excel', 'pt': 'Exportar Excel', 'ru': 'Экспорт Excel', 'id': 'Ekspor Excel'
+  },
+  'common.exportSelected': {
+    'zh-TW': '匯出選中的 {{count}} 個', 'ja': '選択した {{count}} 件をエクスポート', 'ko': '선택한 {{count}}개 내보내기',
+    'de': '{{count}} ausgewählte exportieren', 'fr': 'Exporter {{count}} sélectionnés', 'es': 'Exportar {{count}} seleccionados',
+    'pt': 'Exportar {{count}} selecionados', 'ru': 'Экспорт {{count}} выбранных', 'id': 'Ekspor {{count}} yang dipilih'
+  },
+  'common.exportAll': {
+    'zh-TW': '匯出全部', 'ja': 'すべてエクスポート', 'ko': '전체 내보내기',
+    'de': 'Alle exportieren', 'fr': 'Tout exporter', 'es': 'Exportar todo', 'pt': 'Exportar tudo', 'ru': 'Экспортировать все', 'id': 'Ekspor semua'
+  },
+  'common.exportedCount': {
+    'zh-TW': '已匯出 {{count}} 個 API Key', 'ja': '{{count}} 件のAPIキーをエクスポートしました', 'ko': '{{count}}개의 API 키를 내보냈습니다',
+    'de': '{{count}} API-Schlüssel exportiert', 'fr': '{{count}} clés API exportées', 'es': '{{count}} claves API exportadas',
+    'pt': '{{count}} chaves API exportadas', 'ru': 'Экспортировано {{count}} API ключей', 'id': '{{count}} kunci API diekspor'
+  },
+  'common.unlockExport': {
+    'zh-TW': '升級解鎖匯出功能', 'ja': 'アップグレードしてエクスポート機能を解除', 'ko': '업그레이드하여 내보내기 잠금 해제',
+    'de': 'Upgrade zum Freischalten des Exports', 'fr': 'Mise à niveau pour déverrouiller l\'export', 'es': 'Actualizar para desbloquear exportación',
+    'pt': 'Atualizar para desbloquear exportação', 'ru': 'Обновите для разблокировки экспорта', 'id': 'Tingkatkan untuk membuka ekspor'
+  },
+  
+  // API Keys - Advanced Filter
+  'apiKeys.advancedFilter': {
+    'zh-TW': '進階篩選', 'ja': '詳細フィルター', 'ko': '고급 필터',
+    'de': 'Erweiterter Filter', 'fr': 'Filtre avancé', 'es': 'Filtro avanzado',
+    'pt': 'Filtro avançado', 'ru': 'Расширенный фильтр', 'id': 'Filter lanjutan'
+  },
+  'apiKeys.billingMonth': {
+    'zh-TW': '帳單月份', 'ja': '請求月', 'ko': '청구 월',
+    'de': 'Abrechnungsmonat', 'fr': 'Mois de facturation', 'es': 'Mes de facturación',
+    'pt': 'Mês de faturamento', 'ru': 'Расчетный месяц', 'id': 'Bulan tagihan'
+  },
+  'apiKeys.allMonths': {
+    'zh-TW': '全部月份', 'ja': 'すべての月', 'ko': '전체 월',
+    'de': 'Alle Monate', 'fr': 'Tous les mois', 'es': 'Todos los meses',
+    'pt': 'Todos os meses', 'ru': 'Все месяцы', 'id': 'Semua bulan'
+  },
+  'apiKeys.currentMonth': {
+    'zh-TW': '當前', 'ja': '今月', 'ko': '현재',
+    'de': 'Aktuell', 'fr': 'Actuel', 'es': 'Actual',
+    'pt': 'Atual', 'ru': 'Текущий', 'id': 'Saat ini'
+  },
+  'apiKeys.usageFilter': {
+    'zh-TW': '用量狀態', 'ja': '使用量ステータス', 'ko': '사용량 상태',
+    'de': 'Nutzungsstatus', 'fr': 'État d\'utilisation', 'es': 'Estado de uso',
+    'pt': 'Status de uso', 'ru': 'Статус использования', 'id': 'Status penggunaan'
+  },
+  'apiKeys.allKeys': {
+    'zh-TW': '全部 Key', 'ja': 'すべてのキー', 'ko': '전체 키',
+    'de': 'Alle Schlüssel', 'fr': 'Toutes les clés', 'es': 'Todas las claves',
+    'pt': 'Todas as chaves', 'ru': 'Все ключи', 'id': 'Semua kunci'
+  },
+  'apiKeys.hasUsage': {
+    'zh-TW': '本月有用量', 'ja': '今月使用あり', 'ko': '이번 달 사용 있음',
+    'de': 'Hat Nutzung diesen Monat', 'fr': 'A une utilisation ce mois', 'es': 'Tiene uso este mes',
+    'pt': 'Tem uso este mês', 'ru': 'Есть использование в этом месяце', 'id': 'Ada penggunaan bulan ini'
+  },
+  'apiKeys.noUsage': {
+    'zh-TW': '無用量', 'ja': '使用なし', 'ko': '사용 없음',
+    'de': 'Keine Nutzung', 'fr': 'Pas d\'utilisation', 'es': 'Sin uso',
+    'pt': 'Sem uso', 'ru': 'Нет использования', 'id': 'Tidak ada penggunaan'
+  },
+  'apiKeys.clearAllFilters': {
+    'zh-TW': '清除所有篩選條件', 'ja': 'すべてのフィルターをクリア', 'ko': '모든 필터 지우기',
+    'de': 'Alle Filter löschen', 'fr': 'Effacer tous les filtres', 'es': 'Borrar todos los filtros',
+    'pt': 'Limpar todos os filtros', 'ru': 'Очистить все фильтры', 'id': 'Hapus semua filter'
+  },
+  'apiKeys.monthlyUsageRange': {
+    'zh-TW': '月用量範圍 (K tokens)', 'ja': '月間使用量範囲 (K tokens)', 'ko': '월간 사용량 범위 (K tokens)',
+    'de': 'Monatliche Nutzung (K Tokens)', 'fr': 'Utilisation mensuelle (K tokens)', 'es': 'Uso mensual (K tokens)',
+    'pt': 'Uso mensal (K tokens)', 'ru': 'Месячное использование (K токенов)', 'id': 'Penggunaan bulanan (K token)'
+  },
+  'apiKeys.minLabel': {
+    'zh-TW': '最小', 'ja': '最小', 'ko': '최소',
+    'de': 'Min', 'fr': 'Min', 'es': 'Mín', 'pt': 'Mín', 'ru': 'Мин', 'id': 'Min'
+  },
+  'apiKeys.maxLabel': {
+    'zh-TW': '最大', 'ja': '最大', 'ko': '최대',
+    'de': 'Max', 'fr': 'Max', 'es': 'Máx', 'pt': 'Máx', 'ru': 'Макс', 'id': 'Maks'
+  },
+  'apiKeys.assignOwner': {
+    'zh-TW': '分配負責人', 'ja': '担当者を割り当て', 'ko': '담당자 지정',
+    'de': 'Verantwortlichen zuweisen', 'fr': 'Attribuer un responsable', 'es': 'Asignar propietario',
+    'pt': 'Atribuir proprietário', 'ru': 'Назначить владельца', 'id': 'Tetapkan pemilik'
+  },
+  'apiKeys.batchAssignOwner': {
+    'zh-TW': '批次分配負責人', 'ja': '一括担当者割り当て', 'ko': '일괄 담당자 지정',
+    'de': 'Stapelzuweisung', 'fr': 'Attribution en lot', 'es': 'Asignación por lotes',
+    'pt': 'Atribuição em lote', 'ru': 'Массовое назначение', 'id': 'Tetapkan massal'
+  },
+  'apiKeys.batchAssignOwnerDesc': {
+    'zh-TW': '將為 {{count}} 個 Key 分配相同的負責人', 'ja': '{{count}} 個のキーに同じ担当者を割り当てます', 'ko': '{{count}}개의 키에 동일한 담당자를 지정합니다',
+    'de': '{{count}} Schlüssel demselben Verantwortlichen zuweisen', 'fr': 'Attribuer le même responsable à {{count}} clés', 'es': 'Asignar el mismo propietario a {{count}} claves',
+    'pt': 'Atribuir o mesmo proprietário a {{count}} chaves', 'ru': 'Назначить одного владельца для {{count}} ключей', 'id': 'Tetapkan pemilik yang sama untuk {{count}} kunci'
+  },
+  'apiKeys.clearOwner': {
+    'zh-TW': '清除負責人', 'ja': '担当者をクリア', 'ko': '담당자 삭제',
+    'de': 'Verantwortlichen entfernen', 'fr': 'Effacer le responsable', 'es': 'Borrar propietario',
+    'pt': 'Limpar proprietário', 'ru': 'Очистить владельца', 'id': 'Hapus pemilik'
+  },
+  'apiKeys.ownerCleared': {
+    'zh-TW': '已清除負責人資訊', 'ja': '担当者情報をクリアしました', 'ko': '담당자 정보가 삭제되었습니다',
+    'de': 'Verantwortlicher entfernt', 'fr': 'Responsable effacé', 'es': 'Propietario borrado',
+    'pt': 'Proprietário removido', 'ru': 'Владелец удален', 'id': 'Pemilik dihapus'
+  },
+  'apiKeys.selectOwnerFromTeam': {
+    'zh-TW': '請從團隊成員中選擇負責人。如果成員不存在，請先在「團隊」頁面添加成員。',
+    'ja': 'チームメンバーから担当者を選択してください。メンバーが存在しない場合は、先に「チーム」ページで追加してください。',
+    'ko': '팀 멤버에서 담당자를 선택하세요. 멤버가 없으면 먼저 "팀" 페이지에서 추가하세요.',
+    'de': 'Bitte wählen Sie einen Verantwortlichen aus den Teammitgliedern. Falls das Mitglied nicht existiert, fügen Sie es bitte zuerst auf der "Team"-Seite hinzu.',
+    'fr': 'Veuillez sélectionner un responsable parmi les membres de l\'équipe. Si le membre n\'existe pas, ajoutez-le d\'abord sur la page "Équipe".',
+    'es': 'Seleccione un propietario de los miembros del equipo. Si el miembro no existe, agréguelo primero en la página "Equipo".',
+    'pt': 'Selecione um proprietário dos membros da equipe. Se o membro não existir, adicione-o primeiro na página "Equipe".',
+    'ru': 'Пожалуйста, выберите владельца из членов команды. Если участник отсутствует, сначала добавьте его на странице "Команда".',
+    'id': 'Silakan pilih pemilik dari anggota tim. Jika anggota tidak ada, tambahkan terlebih dahulu di halaman "Tim".'
+  },
+  'apiKeys.selectOwnerRequired': {
+    'zh-TW': '選擇負責人', 'ja': '担当者を選択', 'ko': '담당자 선택',
+    'de': 'Verantwortlichen wählen', 'fr': 'Sélectionner un responsable', 'es': 'Seleccionar propietario',
+    'pt': 'Selecionar proprietário', 'ru': 'Выбрать владельца', 'id': 'Pilih pemilik'
+  },
+  'apiKeys.ownerSetSuccess': {
+    'zh-TW': '已設定負責人: {{name}}', 'ja': '担当者を設定しました: {{name}}', 'ko': '담당자 설정됨: {{name}}',
+    'de': 'Verantwortlicher festgelegt: {{name}}', 'fr': 'Responsable défini: {{name}}', 'es': 'Propietario establecido: {{name}}',
+    'pt': 'Proprietário definido: {{name}}', 'ru': 'Владелец установлен: {{name}}', 'id': 'Pemilik ditetapkan: {{name}}'
+  },
+  'apiKeys.batchOwnerSuccess': {
+    'zh-TW': '成功為 {{count}} 個 Key 分配負責人', 'ja': '{{count}} 個のキーに担当者を割り当てました', 'ko': '{{count}}개의 키에 담당자를 지정했습니다',
+    'de': '{{count}} Schlüssel erfolgreich zugewiesen', 'fr': '{{count}} clés attribuées avec succès', 'es': '{{count}} claves asignadas con éxito',
+    'pt': '{{count}} chaves atribuídas com sucesso', 'ru': 'Успешно назначено {{count}} ключей', 'id': 'Berhasil menetapkan {{count}} kunci'
+  },
+  'apiKeys.selectMemberPlaceholder': {
+    'zh-TW': '-- 請選擇團隊成員 --', 'ja': '-- チームメンバーを選択 --', 'ko': '-- 팀 멤버 선택 --',
+    'de': '-- Teammitglied wählen --', 'fr': '-- Sélectionner un membre --', 'es': '-- Seleccionar miembro --',
+    'pt': '-- Selecionar membro --', 'ru': '-- Выбрать участника --', 'id': '-- Pilih anggota tim --'
+  },
+  'apiKeys.pendingInvite': {
+    'zh-TW': '(待接受邀請)', 'ja': '(招待保留中)', 'ko': '(초대 대기 중)',
+    'de': '(Einladung ausstehend)', 'fr': '(Invitation en attente)', 'es': '(Invitación pendiente)',
+    'pt': '(Convite pendente)', 'ru': '(Ожидает приглашения)', 'id': '(Menunggu undangan)'
+  },
+  'apiKeys.noMembersYet': {
+    'zh-TW': '暫無團隊成員，請先前往「團隊」頁面添加成員。', 'ja': 'チームメンバーがいません。先に「チーム」ページでメンバーを追加してください。',
+    'ko': '팀 멤버가 없습니다. 먼저 "팀" 페이지에서 멤버를 추가하세요.',
+    'de': 'Keine Teammitglieder vorhanden. Bitte fügen Sie zuerst Mitglieder auf der "Team"-Seite hinzu.',
+    'fr': 'Aucun membre d\'équipe. Veuillez d\'abord ajouter des membres sur la page "Équipe".',
+    'es': 'Sin miembros del equipo. Por favor, agregue miembros primero en la página "Equipo".',
+    'pt': 'Nenhum membro da equipe. Por favor, adicione membros primeiro na página "Equipe".',
+    'ru': 'Нет участников команды. Сначала добавьте участников на странице "Команда".',
+    'id': 'Belum ada anggota tim. Silakan tambahkan anggota di halaman "Tim" terlebih dahulu.'
+  },
+  'apiKeys.confirmBatchAssign': {
+    'zh-TW': '確認分配', 'ja': '割り当てを確認', 'ko': '할당 확인',
+    'de': 'Zuweisung bestätigen', 'fr': 'Confirmer l\'attribution', 'es': 'Confirmar asignación',
+    'pt': 'Confirmar atribuição', 'ru': 'Подтвердить назначение', 'id': 'Konfirmasi penetapan'
+  },
+  'apiKeys.confirmBatchDelete': {
+    'zh-TW': '確定要刪除選中的 {{count}} 個 API Key 嗎？此操作不可撤銷。',
+    'ja': '選択した {{count}} 個のAPIキーを削除しますか？この操作は取り消せません。',
+    'ko': '선택한 {{count}}개의 API 키를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.',
+    'de': 'Möchten Sie {{count}} ausgewählte API-Schlüssel wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    'fr': 'Êtes-vous sûr de vouloir supprimer {{count}} clés API sélectionnées ? Cette action est irréversible.',
+    'es': '¿Está seguro de que desea eliminar {{count}} claves API seleccionadas? Esta acción no se puede deshacer.',
+    'pt': 'Tem certeza de que deseja excluir {{count}} chaves API selecionadas? Esta ação não pode ser desfeita.',
+    'ru': 'Вы уверены, что хотите удалить {{count}} выбранных API ключей? Это действие нельзя отменить.',
+    'id': 'Apakah Anda yakin ingin menghapus {{count}} kunci API yang dipilih? Tindakan ini tidak dapat dibatalkan.'
+  },
+  'apiKeys.saveFailed': {
+    'zh-TW': '保存失敗', 'ja': '保存に失敗しました', 'ko': '저장 실패',
+    'de': 'Speichern fehlgeschlagen', 'fr': 'Échec de l\'enregistrement', 'es': 'Error al guardar',
+    'pt': 'Falha ao salvar', 'ru': 'Ошибка сохранения', 'id': 'Gagal menyimpan'
+  },
+  'apiKeys.clearFailed': {
+    'zh-TW': '清除失敗', 'ja': 'クリアに失敗しました', 'ko': '삭제 실패',
+    'de': 'Löschen fehlgeschlagen', 'fr': 'Échec de l\'effacement', 'es': 'Error al borrar',
+    'pt': 'Falha ao limpar', 'ru': 'Ошибка очистки', 'id': 'Gagal menghapus'
+  },
+  'team.selectMemberHint': {
+    'zh-TW': '請從團隊成員中選擇負責人。', 'ja': 'チームメンバーから担当者を選択してください。', 'ko': '팀 멤버에서 담당자를 선택하세요.',
+    'de': 'Bitte wählen Sie einen Verantwortlichen aus den Teammitgliedern.', 'fr': 'Veuillez sélectionner un responsable parmi les membres de l\'équipe.',
+    'es': 'Seleccione un propietario de los miembros del equipo.', 'pt': 'Selecione um proprietário dos membros da equipe.',
+    'ru': 'Пожалуйста, выберите владельца из членов команды.', 'id': 'Silakan pilih pemilik dari anggota tim.'
+  },
+  
+  // API Keys - Delete Warning
   'apiKeys.deleteWarning': {
     'zh-CN': '删除后将无法恢复，使用此 Key 的所有服务都将无法正常工作。',
     'zh-TW': '刪除後將無法恢復，使用此 Key 的所有服務都將無法正常工作。',

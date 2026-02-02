@@ -150,7 +150,7 @@ export function QuotaIndicator() {
   return (
     <>
       <div 
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-colors ${
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm cursor-pointer transition-colors whitespace-nowrap ${
           isAtLimit 
             ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' 
             : isNearLimit
@@ -159,16 +159,17 @@ export function QuotaIndicator() {
         }`}
         onClick={() => isFree && setShowUpgrade(true)}
       >
-        <Icon icon="mdi:key" width={16} />
-        <span>
+        <Icon icon="mdi:key" width={14} className="flex-shrink-0" />
+        <span className="font-medium">
           {max === -1 ? (
-            `${current} Keys`
+            `${current}`
           ) : (
-            `${current}/${max} Keys`
+            `${current}/${max}`
           )}
         </span>
+        <span className="text-xs opacity-70">Keys</span>
         {isFree && (
-          <Icon icon="mdi:arrow-up-circle" width={16} className="text-blue-500" />
+          <Icon icon="mdi:arrow-up-circle" width={14} className="text-blue-500 flex-shrink-0" />
         )}
       </div>
 
