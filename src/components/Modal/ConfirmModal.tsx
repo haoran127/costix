@@ -10,6 +10,7 @@ interface ConfirmModalProps {
   type?: 'info' | 'warning' | 'danger';
   onConfirm: () => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
 const typeConfig = {

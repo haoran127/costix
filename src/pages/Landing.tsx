@@ -235,146 +235,169 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {/* 免费套餐 */}
-            <div className="p-8 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            <div className="flex flex-col p-6 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all">
+              <div className="text-center mb-5">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   {t('landing.planStarter')}
                 </h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-gray-900 dark:text-white">¥0</span>
-                  <span className="text-gray-600 dark:text-gray-400">/{t('landing.perMonth')}</span>
+                <div className="mb-3">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">Free</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs text-gray-600 dark:text-gray-400 min-h-[2.5rem] flex items-center justify-center">
                   {t('landing.planStarterDesc')}
                 </p>
               </div>
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-2 mb-6 flex-1">
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature1')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature1')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature2')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature2')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature3')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature3')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature4')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature5')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planStarterFeature4')}</span>
                 </li>
               </ul>
               <button
                 onClick={handleGetStarted}
-                className="w-full px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium"
+                className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium text-sm"
               >
                 {t('landing.getStarted')}
               </button>
             </div>
 
             {/* 专业套餐 - 推荐 */}
-            <div className="p-8 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl border-2 border-blue-500 dark:border-blue-600 hover:border-blue-600 dark:hover:border-blue-500 transition-all relative">
-              <div className="absolute top-0 right-0 bg-blue-600 text-white px-4 py-1 rounded-bl-lg rounded-tr-2xl text-xs font-semibold">
-                {t('landing.recommended')}
+            <div className="flex flex-col p-6 bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 dark:from-orange-900/20 dark:via-pink-900/20 dark:to-purple-900/20 rounded-2xl border-2 border-orange-400 dark:border-orange-500 hover:border-orange-500 dark:hover:border-orange-400 transition-all relative shadow-lg">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">
+                ⭐ {t('landing.recommended')}
               </div>
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              <div className="text-center mb-5 mt-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   {t('landing.planProfessional')}
                 </h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-gray-900 dark:text-white">¥299</span>
-                  <span className="text-gray-600 dark:text-gray-400">/{t('landing.perMonth')}</span>
+                <div className="mb-3">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">$9</span>
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">/{t('landing.perMonth')}</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                   {t('landing.planProfessionalDesc')}
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
                   {t('landing.yearSave')}
                 </p>
               </div>
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-2 mb-6 flex-1">
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature1')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature1')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature2')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature2')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature3')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature3')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature4')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature5')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature6')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planProfessionalFeature4')}</span>
                 </li>
               </ul>
               <button
                 onClick={handleGetStarted}
-                className="w-full px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-semibold shadow-lg"
+                className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all font-semibold shadow-md text-sm"
+              >
+                {t('landing.startFree')}
+              </button>
+            </div>
+
+            {/* Team 套餐 */}
+            <div className="flex flex-col p-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-2xl border-2 border-indigo-300 dark:border-indigo-600 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all">
+              <div className="text-center mb-5">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                  {t('landing.planTeam')}
+                </h3>
+                <div className="mb-3">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">$49</span>
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">/{t('landing.perMonth')}</span>
+                </div>
+                <p className="text-xs text-gray-600 dark:text-gray-400 min-h-[2.5rem] flex items-center justify-center">
+                  {t('landing.planTeamDesc')}
+                </p>
+              </div>
+              <ul className="space-y-2 mb-6 flex-1">
+                <li className="flex items-start gap-2">
+                  <Icon icon="mdi:check-circle" width={18} className="text-indigo-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planTeamFeature1')}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Icon icon="mdi:check-circle" width={18} className="text-indigo-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planTeamFeature2')}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Icon icon="mdi:check-circle" width={18} className="text-indigo-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planTeamFeature3')}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Icon icon="mdi:check-circle" width={18} className="text-indigo-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planTeamFeature4')}</span>
+                </li>
+              </ul>
+              <button
+                onClick={handleGetStarted}
+                className="w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-all font-medium text-sm"
               >
                 {t('landing.startFree')}
               </button>
             </div>
 
             {/* 企业套餐 */}
-            <div className="p-8 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 transition-all">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            <div className="flex flex-col p-6 bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-800 dark:to-slate-800 rounded-2xl border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all">
+              <div className="text-center mb-5">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   {t('landing.planEnterprise')}
                 </h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-gray-900 dark:text-white">{t('landing.customPrice')}</span>
+                <div className="mb-3">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">{t('landing.customPrice')}</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs text-gray-600 dark:text-gray-400 min-h-[2.5rem] flex items-center justify-center">
                   {t('landing.planEnterpriseDesc')}
                 </p>
               </div>
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-2 mb-6 flex-1">
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-purple-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature1')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature1')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-purple-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature2')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature2')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-purple-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature3')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature3')}</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-purple-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature4')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Icon icon="mdi:check-circle" width={20} className="text-purple-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature5')}</span>
+                  <Icon icon="mdi:check-circle" width={18} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-300">{t('landing.planEnterpriseFeature4')}</span>
                 </li>
               </ul>
-              <button
-                onClick={handleGetStarted}
-                className="w-full px-6 py-3 bg-purple-600 dark:bg-purple-500 text-white rounded-lg hover:bg-purple-700 dark:hover:bg-purple-600 transition-colors font-medium"
+              <a
+                href="mailto:sales@costix.net?subject=Costix Enterprise Inquiry"
+                className="block w-full px-4 py-3 bg-gray-800 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-900 dark:hover:bg-gray-500 transition-colors font-medium text-center text-sm"
               >
                 {t('landing.contactSales')}
-              </button>
+              </a>
             </div>
           </div>
 

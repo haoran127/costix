@@ -439,7 +439,7 @@
     "planStarterFeature5": "Базовые уведомления о предупреждениях",
     "planProfessional": "Профессиональный",
     "planProfessionalDesc": "Идеально для МСП и растущих команд",
-    "yearSave": "¥2,990/год, сэкономьте 17%",
+    "yearSave": "$90/год, сэкономьте 17%",
     "planProfessionalFeature1": "До 50 API-ключей",
     "planProfessionalFeature2": "До 3 команд, 20 участников",
     "planProfessionalFeature3": "Мониторинг и синхронизация использования в реальном времени",
@@ -460,7 +460,13 @@
     "ctaTitle": "Начать сейчас",
     "ctaSubtitle": "Бесплатная регистрация, немедленно испытайте мощные функции управления ресурсами ИИ",
     "startNow": "Начать сейчас",
-    "allRightsReserved": "Все права защищены"
+    "allRightsReserved": "Все права защищены",
+    "planTeam": "Команда",
+    "planTeamDesc": "Для растущих команд",
+    "planTeamFeature1": "Неограниченные API ключи",
+    "planTeamFeature2": "Неограниченные команды и участники",
+    "planTeamFeature3": "Расширенная аналитика и отчеты",
+    "planTeamFeature4": "Приоритетная поддержка"
   },
   "platformAccounts": {
     "title": "Настройка аккаунтов платформ",

@@ -439,7 +439,7 @@
     "planStarterFeature5": "基礎告警通知",
     "planProfessional": "專業套餐",
     "planProfessionalDesc": "適合中小型企業和成長型團隊",
-    "yearSave": "年付僅 ¥2,990，節省 17%",
+    "yearSave": "年付僅 $90，節省 17%",
     "planProfessionalFeature1": "最多 50 個 API Key",
     "planProfessionalFeature2": "最多 3 個團隊，20 名成員",
     "planProfessionalFeature3": "即時用量監控和同步",
@@ -460,7 +460,13 @@
     "ctaTitle": "立即開始使用",
     "ctaSubtitle": "免費註冊，立即體驗強大的 AI 資源管理功能",
     "startNow": "立即開始",
-    "allRightsReserved": "保留所有權利"
+    "allRightsReserved": "保留所有權利",
+    "planTeam": "團隊版",
+    "planTeamDesc": "適合成長中的團隊",
+    "planTeamFeature1": "無限 API Keys",
+    "planTeamFeature2": "無限團隊和成員",
+    "planTeamFeature3": "高級分析和報表",
+    "planTeamFeature4": "優先支援"
   },
   "platformAccounts": {
     "title": "平台帳號設定",

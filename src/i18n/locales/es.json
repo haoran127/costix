@@ -439,7 +439,7 @@
     "planStarterFeature5": "Notificaciones básicas de alerta",
     "planProfessional": "Profesional",
     "planProfessionalDesc": "Perfecto para PYMEs y equipos en crecimiento",
-    "yearSave": "¥2,990/año, ahorra 17%",
+    "yearSave": "$90/año, ahorra 17%",
     "planProfessionalFeature1": "Hasta 50 claves API",
     "planProfessionalFeature2": "Hasta 3 equipos, 20 miembros",
     "planProfessionalFeature3": "Monitoreo y sincronización de uso en tiempo real",
@@ -460,7 +460,13 @@
     "ctaTitle": "Comenzar ahora",
     "ctaSubtitle": "Registro gratuito, experimenta inmediatamente las poderosas funciones de gestión de recursos IA",
     "startNow": "Comenzar ahora",
-    "allRightsReserved": "Todos los derechos reservados"
+    "allRightsReserved": "Todos los derechos reservados",
+    "planTeam": "Equipo",
+    "planTeamDesc": "Para equipos en crecimiento",
+    "planTeamFeature1": "Claves API ilimitadas",
+    "planTeamFeature2": "Equipos y miembros ilimitados",
+    "planTeamFeature3": "Análisis e informes avanzados",
+    "planTeamFeature4": "Soporte prioritario"
   },
   "platformAccounts": {
     "title": "Configuración de Cuentas de Plataforma",

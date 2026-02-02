@@ -53,6 +53,7 @@ export interface LLMPlatformAccount {
   name: string;
   platform: 'openai' | 'anthropic' | 'openrouter' | 'aliyun' | 'volcengine' | 'deepseek';
   organization_id?: string;
+  project_id?: string;
   admin_api_key_encrypted?: string;
   admin_api_key_prefix?: string;
   balance?: number;

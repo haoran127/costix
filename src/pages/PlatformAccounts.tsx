@@ -53,6 +53,8 @@ interface AccountForm {
   admin_api_key: string;
   organization_id: string;
   project_id: string;
+  access_key_id: string;
+  secret_access_key: string;
 }
 
 export default function PlatformAccounts() {
@@ -180,7 +182,7 @@ export default function PlatformAccounts() {
         setIsSubmitting(false);
         return;
       }
-      if (platformConfig.requiredFields.includes('project_id') && !form.project_id.trim()) {
+      if ((platformConfig.requiredFields as readonly string[]).includes('project_id') && !form.project_id.trim()) {
         setError(t('platformAccounts.errorProjectIdRequired'));
         setIsSubmitting(false);
         return;
@@ -531,10 +533,10 @@ export default function PlatformAccounts() {
                       <span className="text-xs">{account.organization_id}</span>
                     </div>
                   )}
-                  {account.total_balance !== null && (
+                  {account.total_balance != null && (
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <Icon icon={account.platform === 'volcengine' ? 'mdi:currency-cny' : 'mdi:currency-usd'} width={16} />
-                      <span className="text-xs">{t('platformAccounts.balance')}: {account.platform === 'volcengine' ? '¥' : '$'}{account.total_balance.toFixed(2)}</span>
+                      <span className="text-xs">{t('platformAccounts.balance')}: {account.platform === 'volcengine' ? '¥' : '$'}{account.total_balance!.toFixed(2)}</span>
                     </div>
                   )}
                 </div>
@@ -706,7 +708,7 @@ export default function PlatformAccounts() {
               )}
 
               {/* Project ID (仅 OpenAI) */}
-              {platformConfig.requiredFields.includes('project_id') && (
+              {(platformConfig.requiredFields as readonly string[]).includes('project_id') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('platformAccounts.projectId')} <span className="text-red-500">*</span>
@@ -726,7 +728,7 @@ export default function PlatformAccounts() {
               )}
 
               {/* Organization ID (可选) */}
-              {platformConfig.optionalFields.includes('organization_id') && (
+              {(platformConfig.optionalFields as readonly string[]).includes('organization_id') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('platformAccounts.organizationId')} <span className="text-gray-400 text-xs">({t('platformAccounts.organizationIdOptional')})</span>

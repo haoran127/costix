@@ -7,19 +7,15 @@ import Landing from './pages/Landing';
 import Pricing from './pages/Pricing';
 import Legal from './pages/Legal';
 import { getCurrentUser, onAuthStateChange, type AuthUser } from './lib/auth';
+import { useDocumentTitle } from './hooks/useDocumentTitle';
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
 
-  // 开发模式下更新网页标题
-  useEffect(() => {
-    const isDev = import.meta.env.DEV;
-    if (isDev) {
-      document.title = 'IM30 AI 用量管理';
-    }
-  }, []);
+  // 根据语言动态设置页面标题
+  useDocumentTitle();
 
   useEffect(() => {
     // Supabase Auth 认证流程
@@ -69,7 +65,7 @@ function App() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500">加载中...</p>
+          <p className="text-gray-500">Loading...</p>
         </div>
       </div>
     );

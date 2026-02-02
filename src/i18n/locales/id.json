@@ -439,7 +439,7 @@
     "planStarterFeature5": "Notifikasi peringatan dasar",
     "planProfessional": "Profesional",
     "planProfessionalDesc": "Sempurna untuk UKM dan tim yang berkembang",
-    "yearSave": "¥2,990/tahun, hemat 17%",
+    "yearSave": "$90/tahun, hemat 17%",
     "planProfessionalFeature1": "Hingga 50 kunci API",
     "planProfessionalFeature2": "Hingga 3 tim, 20 anggota",
     "planProfessionalFeature3": "Pemantauan dan sinkronisasi penggunaan real-time",
@@ -460,7 +460,13 @@
     "ctaTitle": "Mulai Sekarang",
     "ctaSubtitle": "Pendaftaran gratis, segera alami fitur manajemen sumber daya AI yang kuat",
     "startNow": "Mulai Sekarang",
-    "allRightsReserved": "Hak Cipta Dilindungi"
+    "allRightsReserved": "Hak Cipta Dilindungi",
+    "planTeam": "Tim",
+    "planTeamDesc": "Untuk tim yang berkembang",
+    "planTeamFeature1": "Kunci API tidak terbatas",
+    "planTeamFeature2": "Tim & anggota tidak terbatas",
+    "planTeamFeature3": "Analitik & laporan lanjutan",
+    "planTeamFeature4": "Dukungan prioritas"
   },
   "platformAccounts": {
     "title": "Konfigurasi Akun Platform",

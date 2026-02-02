@@ -247,9 +247,9 @@ A: 30-day money-back guarantee. After that, annual contracts are non-refundable 
 
 ## Contact
 
-- **Sales Questions:** sales@keypilot.dev
-- **Technical Pre-Sales:** solutions@keypilot.dev
-- **Enterprise Support:** enterprise@keypilot.dev
+- **Sales Questions:** sales@costix.net
+- **Technical Pre-Sales:** solutions@costix.net
+- **Enterprise Support:** enterprise@costix.net
 
 ---
 

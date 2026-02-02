@@ -363,6 +363,32 @@ const translations = {
   'alerts.severities.error': {
     'zh-CN': '错误', 'zh-TW': '錯誤', 'ja': 'エラー', 'ko': '오류',
     'de': 'Fehler', 'fr': 'Erreur', 'es': 'Error', 'pt': 'Erro', 'ru': 'Ошибка', 'id': 'Error'
+  },
+  
+  // Landing - Team Plan
+  'landing.planTeam': {
+    'zh-CN': '团队版', 'zh-TW': '團隊版', 'ja': 'チーム', 'ko': '팀',
+    'de': 'Team', 'fr': 'Équipe', 'es': 'Equipo', 'pt': 'Equipe', 'ru': 'Команда', 'id': 'Tim'
+  },
+  'landing.planTeamDesc': {
+    'zh-CN': '适合成长中的团队', 'zh-TW': '適合成長中的團隊', 'ja': '成長するチーム向け', 'ko': '성장하는 팀에 적합',
+    'de': 'Für wachsende Teams', 'fr': 'Pour les équipes en croissance', 'es': 'Para equipos en crecimiento', 'pt': 'Para equipes em crescimento', 'ru': 'Для растущих команд', 'id': 'Untuk tim yang berkembang'
+  },
+  'landing.planTeamFeature1': {
+    'zh-CN': '无限 API Keys', 'zh-TW': '無限 API Keys', 'ja': '無制限のAPIキー', 'ko': '무제한 API 키',
+    'de': 'Unbegrenzte API-Schlüssel', 'fr': 'Clés API illimitées', 'es': 'Claves API ilimitadas', 'pt': 'Chaves API ilimitadas', 'ru': 'Неограниченные API ключи', 'id': 'Kunci API tidak terbatas'
+  },
+  'landing.planTeamFeature2': {
+    'zh-CN': '无限团队和成员', 'zh-TW': '無限團隊和成員', 'ja': '無制限のチームとメンバー', 'ko': '무제한 팀 및 멤버',
+    'de': 'Unbegrenzte Teams & Mitglieder', 'fr': 'Équipes et membres illimités', 'es': 'Equipos y miembros ilimitados', 'pt': 'Equipes e membros ilimitados', 'ru': 'Неограниченные команды и участники', 'id': 'Tim & anggota tidak terbatas'
+  },
+  'landing.planTeamFeature3': {
+    'zh-CN': '高级分析和报表', 'zh-TW': '高級分析和報表', 'ja': '高度な分析とレポート', 'ko': '고급 분석 및 보고서',
+    'de': 'Erweiterte Analysen & Berichte', 'fr': 'Analyses et rapports avancés', 'es': 'Análisis e informes avanzados', 'pt': 'Análises e relatórios avançados', 'ru': 'Расширенная аналитика и отчеты', 'id': 'Analitik & laporan lanjutan'
+  },
+  'landing.planTeamFeature4': {
+    'zh-CN': '优先支持', 'zh-TW': '優先支援', 'ja': '優先サポート', 'ko': '우선 지원',
+    'de': 'Prioritäts-Support', 'fr': 'Support prioritaire', 'es': 'Soporte prioritario', 'pt': 'Suporte prioritário', 'ru': 'Приоритетная поддержка', 'id': 'Dukungan prioritas'
   }
 };
 

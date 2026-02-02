@@ -439,7 +439,7 @@
     "planStarterFeature5": "기본 알림",
     "planProfessional": "프로페셔널",
     "planProfessionalDesc": "중소기업 및 성장하는 팀에 적합",
-    "yearSave": "연간 ¥2,990, 17% 절약",
+    "yearSave": "연간 $90, 17% 절약",
     "planProfessionalFeature1": "최대 50개의 API 키",
     "planProfessionalFeature2": "최대 3개 팀, 20명",
     "planProfessionalFeature3": "실시간 사용량 모니터링 및 동기화",
@@ -460,7 +460,13 @@
     "ctaTitle": "지금 시작하기",
     "ctaSubtitle": "무료 등록으로 강력한 AI 리소스 관리 기능을 즉시 체험",
     "startNow": "지금 시작하기",
-    "allRightsReserved": "모든 권리 보유"
+    "allRightsReserved": "모든 권리 보유",
+    "planTeam": "팀",
+    "planTeamDesc": "성장하는 팀에 적합",
+    "planTeamFeature1": "무제한 API 키",
+    "planTeamFeature2": "무제한 팀 및 멤버",
+    "planTeamFeature3": "고급 분석 및 보고서",
+    "planTeamFeature4": "우선 지원"
   },
   "platformAccounts": {
     "title": "플랫폼 계정 설정",

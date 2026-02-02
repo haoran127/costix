@@ -82,7 +82,7 @@ export default function Pricing() {
 
   const handleSubscribe = (plan: SubscriptionPlan) => {
     if (plan.name === 'enterprise') {
-      window.open('mailto:sales@keypilot.dev?subject=KeyPilot Enterprise Inquiry', '_blank');
+      window.open('mailto:sales@costix.net?subject=Costix Enterprise Inquiry', '_blank');
       return;
     }
     
@@ -536,7 +536,7 @@ export default function Pricing() {
                 Ready to take control of your API keys?
               </h2>
               <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-                Join {stats.total_developers.toLocaleString()}+ developers who trust KeyPilot to manage their API keys securely and efficiently.
+                Join {stats.total_developers.toLocaleString()}+ developers who trust Costix to manage their API keys securely and efficiently.
               </p>
               <button
                 className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all"

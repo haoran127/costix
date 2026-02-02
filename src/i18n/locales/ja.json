@@ -439,7 +439,7 @@
     "planStarterFeature5": "基本的なアラート通知",
     "planProfessional": "プロフェッショナル",
     "planProfessionalDesc": "中小企業や成長中のチームに最適",
-    "yearSave": "年間¥2,990、17%節約",
+    "yearSave": "年間$90、17%節約",
     "planProfessionalFeature1": "最大50のAPIキー",
     "planProfessionalFeature2": "最大3チーム、20名",
     "planProfessionalFeature3": "リアルタイム使用量監視と同期",
@@ -460,7 +460,13 @@
     "ctaTitle": "今すぐ始める",
     "ctaSubtitle": "無料登録で、強力なAIリソース管理機能をすぐに体験",
     "startNow": "今すぐ始める",
-    "allRightsReserved": "全著作権所有"
+    "allRightsReserved": "全著作権所有",
+    "planTeam": "チーム",
+    "planTeamDesc": "成長するチーム向け",
+    "planTeamFeature1": "無制限のAPIキー",
+    "planTeamFeature2": "無制限のチームとメンバー",
+    "planTeamFeature3": "高度な分析とレポート",
+    "planTeamFeature4": "優先サポート"
   },
   "platformAccounts": {
     "title": "プラットフォームアカウント設定",

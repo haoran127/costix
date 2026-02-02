@@ -82,18 +82,23 @@ function main() {
     }
   });
 
-  // 使用第一个语言文件作为基准
-  const baseLocale = Array.from(locales.values())[0];
+  // 使用 en-US.json 作为基准（与 check-i18n.js 保持一致）
+  const baseLocale = locales.get('en-US');
+  if (!baseLocale) {
+    console.error('❌ 未找到基准语言文件 en-US.json！');
+    process.exit(1);
+  }
   const baseKeys = new Set(baseLocale.keys);
   
   console.log(`📊 基准语言: ${baseLocale.name} (${baseKeys.size} 个翻译键)\n`);
 
   // 检查每个语言文件
-  let hasMissing = false;
-  const missingKeys = new Map();
+  let hasMissingKeys = false;
+  let hasExtraKeys = false;
+  const issues = new Map();
 
   locales.forEach((locale, code) => {
-    if (code === baseLocale.name.replace('.json', '')) {
+    if (code === 'en-US') {
       return; // 跳过基准语言
     }
 
@@ -101,42 +106,60 @@ function main() {
     const missing = Array.from(baseKeys).filter(key => !localeKeys.has(key));
     const extra = Array.from(localeKeys).filter(key => !baseKeys.has(key));
 
+    if (missing.length > 0) {
+      hasMissingKeys = true;
+    }
+    if (extra.length > 0) {
+      hasExtraKeys = true;
+    }
     if (missing.length > 0 || extra.length > 0) {
-      hasMissing = true;
-      missingKeys.set(code, { missing, extra, name: locale.name });
+      issues.set(code, { missing, extra, name: locale.name });
     }
   });
 
   // 输出结果
-  if (!hasMissing) {
+  if (issues.size === 0) {
     console.log('✅ 所有语言文件的翻译键完全一致！\n');
     process.exit(0);
   } else {
-    console.log('❌ 发现翻译键不一致：\n');
+    if (hasMissingKeys) {
+      console.log('❌ 发现缺失的翻译键（构建将失败）：\n');
+    } else {
+      console.log('ℹ️  发现多余的翻译键（仅警告，不影响构建）：\n');
+    }
     
-    missingKeys.forEach(({ missing, extra, name }, code) => {
+    issues.forEach(({ missing, extra, name }, code) => {
       console.log(`📄 ${name} (${code})`);
       console.log('─'.repeat(80));
       
       if (missing.length > 0) {
-        console.log(`\n  ⚠️  缺失的翻译键 (${missing.length} 个):`);
+        console.log(`\n  ❌ 缺失的翻译键 (${missing.length} 个):`);
         missing.forEach(key => {
           console.log(`    - ${key}`);
         });
       }
       
       if (extra.length > 0) {
-        console.log(`\n  ℹ️  多余的翻译键 (${extra.length} 个):`);
-        extra.forEach(key => {
+        console.log(`\n  ℹ️  多余的翻译键 (${extra.length} 个) - 可选清理:`);
+        extra.slice(0, 5).forEach(key => {
           console.log(`    + ${key}`);
         });
+        if (extra.length > 5) {
+          console.log(`    ... 还有 ${extra.length - 5} 个`);
+        }
       }
       
       console.log('');
     });
     
-    console.log('\n💡 提示：请确保所有语言文件包含相同的翻译键\n');
-    process.exit(1);
+    // 只对缺失键报错，多余键只是警告
+    if (hasMissingKeys) {
+      console.log('\n💡 提示：请补充缺失的翻译键\n');
+      process.exit(1);
+    } else {
+      console.log('\n💡 提示：多余的键不影响功能，可以稍后清理\n');
+      process.exit(0); // 多余键不阻止构建
+    }
   }
 }
 

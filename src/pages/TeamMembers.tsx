@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
 import ConfirmModal from '../components/Modal/ConfirmModal';
-import Toast from '../components/Toast';
 import {
   getTeamMembers,
   inviteTeamMember,
@@ -305,7 +304,6 @@ export default function TeamMembers() {
                           value={member.role}
                           onChange={(e) => handleRoleUpdate(member.id, e.target.value as 'admin' | 'member' | 'viewer')}
                           className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
-                          disabled={member.role === 'owner'}
                         >
                           <option value="admin">{t('team.roleAdmin')}</option>
                           <option value="member">{t('team.roleMember')}</option>
@@ -452,11 +450,26 @@ export default function TeamMembers() {
 
       {/* Toast 提示 */}
       {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-2">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm min-w-[300px] max-w-[500px] ${
+            toast.type === 'success' 
+              ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' 
+              : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+          }`}>
+            <Icon 
+              icon={toast.type === 'success' ? 'mdi:check-circle' : 'mdi:close-circle'} 
+              width={20} 
+              className="flex-shrink-0"
+            />
+            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors"
+            >
+              <Icon icon="mdi:close" width={16} />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

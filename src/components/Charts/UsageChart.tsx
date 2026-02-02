@@ -99,13 +99,14 @@ export default function UsageChart({ data, period, showCost = false }: UsageChar
             borderRadius: '8px',
             padding: '8px 12px',
           }}
-          formatter={(value: number, name: string) => {
+          formatter={(value, name) => {
+            const numValue = Number(value) || 0;
             if (name === 'tokens') {
-              return [formatNumber(value), t('dashboard.monthlyTokens')];
+              return [formatNumber(numValue), t('dashboard.monthlyTokens')];
             } else if (name === 'cost') {
-              return [`$${value.toFixed(2)}`, t('dashboard.monthlyUsage')];
+              return [`$${numValue.toFixed(2)}`, t('dashboard.monthlyUsage')];
             }
-            return [value, name];
+            return [numValue, name];
           }}
         />
         <Legend />
