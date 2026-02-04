@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     );
 
-    const openaiData = await openaiResponse.json();
+    const openaiData = await openaiResponse.json() as { data?: any[]; error?: { message?: string; code?: string } };
 
     if (!openaiResponse.ok || openaiData.error) {
       return res.status(openaiResponse.status || 400).json({

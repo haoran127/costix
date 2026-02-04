@@ -9,6 +9,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // 监听滚动
   useEffect(() => {
@@ -55,7 +56,9 @@ export default function Landing() {
                 {import.meta.env.DEV ? 'IM30 AI 用量管理' : t('common.productName')}
               </span>
             </div>
-            <div className="flex items-center gap-4">
+
+            {/* 桌面端导航 */}
+            <div className="hidden md:flex items-center gap-4">
               <a href="#features" className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 {t('landing.features')}
               </a>
@@ -107,8 +110,72 @@ export default function Landing() {
                 {t('landing.getStarted')}
               </button>
             </div>
+
+            {/* 移动端菜单按钮 */}
+            <div className="flex md:hidden items-center gap-2">
+              <button
+                onClick={handleGetStarted}
+                className="px-3 py-1.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm font-medium"
+              >
+                {t('landing.getStarted')}
+              </button>
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Icon icon={showMobileMenu ? 'mdi:close' : 'mdi:menu'} width={24} className="text-gray-700 dark:text-gray-300" />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* 移动端下拉菜单 */}
+        {showMobileMenu && (
+          <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg">
+            <div className="px-4 py-3 space-y-1">
+              <a 
+                href="#features" 
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                {t('landing.features')}
+              </a>
+              <a 
+                href="#pricing" 
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                {t('landing.pricing')}
+              </a>
+              
+              {/* 移动端语言选择 */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                <p className="px-3 py-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t('settings.language')}
+                </p>
+                <div className="grid grid-cols-2 gap-1 mt-1">
+                  {languages.map(lang => (
+                    <button
+                      key={lang.code}
+                      onClick={() => {
+                        handleLanguageChange(lang.code);
+                        setShowMobileMenu(false);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        i18n.language === lang.code
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <span>{lang.flag}</span>
+                      <span className="truncate">{lang.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero 区域 */}

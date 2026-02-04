@@ -70,7 +70,8 @@
     "logout": "ログアウト",
     "logout_confirm_message": "ログアウトしてもよろしいですか？",
     "overview": "概要",
-    "team": "チーム"
+    "team": "チーム",
+    "help": "ヘルプ・サポート"
   },
   "platforms": {
     "openai": "OpenAI",

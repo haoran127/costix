@@ -141,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: requestBody,
       });
 
-      const keysData = await keysResponse.json();
+      const keysData = await keysResponse.json() as { ResponseMetadata?: { Error?: { Message?: string; Code?: string } }; Result?: { Items?: any[] } };
 
       // 调试：打印完整的 API 响应
       console.log('[volcengine/sync] ListApiKeys API 响应:', JSON.stringify(keysData, null, 2));
@@ -420,7 +420,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    const apiData = await apiResponse.json();
+    const apiData = await apiResponse.json() as { ResponseMetadata?: { Error?: { Message?: string; Code?: string } }; Result?: any };
 
     // 检查 API 错误
     if (apiData.ResponseMetadata && apiData.ResponseMetadata.Error) {

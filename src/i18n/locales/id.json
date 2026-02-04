@@ -70,7 +70,8 @@
     "logout": "Keluar",
     "logout_confirm_message": "Apakah Anda yakin ingin keluar?",
     "overview": "Ringkasan",
-    "team": "Tim"
+    "team": "Tim",
+    "help": "Bantuan & Dukungan"
   },
   "auth": {
     "signIn": "Masuk",

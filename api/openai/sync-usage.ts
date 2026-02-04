@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    const projectsData = await projectsResponse.json();
+    const projectsData = await projectsResponse.json() as { data?: any[]; error?: { message?: string } };
     if (!projectsResponse.ok || projectsData.error) {
       return res.status(projectsResponse.status || 400).json({
         success: false,
@@ -106,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       );
 
-      const keysData = await keysResponse.json();
+      const keysData = await keysResponse.json() as { data?: any[] };
       if (keysResponse.ok && keysData.data) {
         keysData.data.forEach((key: any) => {
           allOpenAIKeys.push({
@@ -226,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const usageData = await usageResponse.json();
+      const usageData = await usageResponse.json() as { data?: any[]; has_more?: boolean; next_page?: string; error?: { message?: string; code?: string } };
       
       // 检查 API 错误
       if (!usageResponse.ok || usageData.error) {
@@ -385,7 +385,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw new Error(`检查记录失败: ${checkResponse.status} ${checkResponse.statusText}`);
           }
 
-          const checkData = await checkResponse.json();
+          const checkData = await checkResponse.json() as any[];
           const recordExists = Array.isArray(checkData) && checkData.length > 0;
 
           if (recordExists) {

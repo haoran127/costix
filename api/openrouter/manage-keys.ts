@@ -94,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const listData = await listResponse.json();
+      const listData = await listResponse.json() as { data?: any[]; error?: { message?: string } };
 
       if (!listResponse.ok || listData.error) {
         return res.status(listResponse.status || 400).json({
@@ -147,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify(createBody),
       });
 
-      const createData = await createResponse.json();
+      const createData = await createResponse.json() as { data?: any; body?: any; key?: string; error?: { message?: string } };
 
       if (!createResponse.ok || createData.error) {
         return res.status(createResponse.status || 400).json({
@@ -255,7 +255,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const deleteData = await deleteResponse.json();
+      const deleteData = await deleteResponse.json() as { error?: { code?: number; message?: string } };
 
       if (!deleteResponse.ok && deleteData.error) {
         if (deleteData.error.code === 404 || deleteData.error.message?.includes('not found')) {
@@ -303,7 +303,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify(updateBody),
       });
 
-      const updateData = await updateResponse.json();
+      const updateData = await updateResponse.json() as { error?: { message?: string } };
 
       if (!updateResponse.ok || updateData.error) {
         return res.status(updateResponse.status || 400).json({
@@ -343,7 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const listData = await listResponse.json();
+      const listData = await listResponse.json() as { data?: any[]; error?: { message?: string } };
 
       if (!listResponse.ok || listData.error) {
         return res.status(listResponse.status || 400).json({
@@ -665,7 +665,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const creditsData = await creditsResponse.json();
+      const creditsData = await creditsResponse.json() as { data?: any; error?: { message?: string } };
 
       if (!creditsResponse.ok || creditsData.error) {
         return res.status(creditsResponse.status || 400).json({

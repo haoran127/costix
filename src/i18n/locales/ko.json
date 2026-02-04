@@ -70,7 +70,8 @@
     "logout": "로그아웃",
     "logout_confirm_message": "로그아웃하시겠습니까?",
     "overview": "개요",
-    "team": "팀"
+    "team": "팀",
+    "help": "도움말 및 지원"
   },
   "platforms": {
     "openai": "OpenAI",

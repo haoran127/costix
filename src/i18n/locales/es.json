@@ -70,7 +70,8 @@
     "logout": "Cerrar sesión",
     "logout_confirm_message": "¿Está seguro de que desea cerrar sesión?",
     "overview": "Resumen",
-    "team": "Equipo"
+    "team": "Equipo",
+    "help": "Ayuda y Soporte"
   },
   "auth": {
     "signIn": "Iniciar sesión",

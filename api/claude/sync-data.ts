@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const listData = await listResponse.json();
+      const listData = await listResponse.json() as { data?: any[]; has_more?: boolean; error?: { message?: string } };
       console.log('[claude/list-keys] API 响应状态:', listResponse.status, 'has_error:', !!listData.error, 'keys_count:', listData.data?.length || 0);
 
       if (!listResponse.ok || listData.error) {
@@ -259,7 +259,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const usageData = await usageResponse.json();
+      const usageData = await usageResponse.json() as { data?: any[]; error?: { message?: string } };
       console.log('[claude/sync-usage] API 响应状态:', usageResponse.status, 'has_error:', !!usageData.error, 'buckets_count:', usageData.data?.length || 0);
 
       if (!usageResponse.ok || usageData.error) {
@@ -336,7 +336,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         });
 
-        const listData = await listResponse.json();
+        const listData = await listResponse.json() as { data?: any[]; error?: { message?: string } };
         if (listResponse.ok && listData.data) {
           const keysToSave: any[] = [];
           for (const key of listData.data) {

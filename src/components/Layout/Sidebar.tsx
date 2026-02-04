@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import ConfirmModal from '../Modal/ConfirmModal';
 import { signOut } from '../../lib/auth';
 import { useSubscription } from '../../hooks/useSubscription';
+import { openTawkChat, hideTawkWidget, onTawkLoad } from '../../lib/tawkto';
 
 interface SidebarProps {
   currentSection: string;
@@ -66,6 +67,13 @@ export default function Sidebar({ currentSection, onSectionChange, user, onOpenP
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 登录后隐藏 Tawk.to 浮动按钮
+  useEffect(() => {
+    onTawkLoad(() => {
+      hideTawkWidget();
+    });
   }, []);
 
   // 确认退出登录
@@ -192,6 +200,16 @@ export default function Sidebar({ currentSection, onSectionChange, user, onOpenP
                 >
                   <Icon icon="mdi:cog-outline" width={18} className="text-gray-500 dark:text-gray-400" />
                   {t('nav.settings')}
+                </button>
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    openTawkChat();
+                  }}
+                >
+                  <Icon icon="mdi:chat-question-outline" width={18} className="text-gray-500 dark:text-gray-400" />
+                  {t('nav.help')}
                 </button>
                 <div className="border-t border-gray-100 dark:border-slate-600 my-1"></div>
                 <button

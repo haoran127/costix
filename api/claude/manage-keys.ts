@@ -92,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
       });
 
-      const verifyData = await verifyResponse.json();
+      const verifyData = await verifyResponse.json() as { error?: { type?: string; message?: string } };
       if (verifyResponse.status !== 200 && verifyData.error) {
         const errorType = verifyData.error.type || '';
         // rate_limit 说明 key 是有效的
@@ -196,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify({ status: 'inactive' }),
       });
 
-      const deleteData = await deleteResponse.json();
+      const deleteData = await deleteResponse.json() as { error?: { type?: string; message?: string } };
 
       if (deleteResponse.status !== 200 && deleteData.error) {
         if (deleteData.error.type === 'not_found_error') {
@@ -278,7 +278,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
       });
 
-      const verifyData = await verifyResponse.json();
+      const verifyData = await verifyResponse.json() as { error?: { type?: string; message?: string } };
       if (verifyResponse.status === 200) {
         return res.status(200).json({
           success: true,

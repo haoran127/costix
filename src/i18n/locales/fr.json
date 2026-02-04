@@ -70,7 +70,8 @@
     "logout": "Déconnexion",
     "logout_confirm_message": "Êtes-vous sûr de vouloir vous déconnecter?",
     "overview": "Aperçu",
-    "team": "Équipe"
+    "team": "Équipe",
+    "help": "Aide & Support"
   },
   "auth": {
     "signIn": "Connexion",

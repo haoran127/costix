@@ -581,8 +581,19 @@ export default function Auth({ onSuccess }: AuthProps) {
         </div>
 
         {/* 底部 */}
-        <div className="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
-          © 2026 {isDev ? 'IM30' : t('common.productName')}. All rights reserved.
+        <div className="text-center mt-6 space-y-2">
+          <div className="flex items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+            <a href="/legal/terms" className="hover:text-gray-700 dark:hover:text-gray-300 hover:underline">
+              {t('auth.termsOfService')}
+            </a>
+            <span>·</span>
+            <a href="/legal/privacy" className="hover:text-gray-700 dark:hover:text-gray-300 hover:underline">
+              {t('auth.privacyPolicy')}
+            </a>
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            © 2026 {isDev ? 'IM30' : t('common.productName')}. All rights reserved.
+          </div>
         </div>
       </div>
     </div>

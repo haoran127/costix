@@ -96,6 +96,13 @@ const translations = {
     'pt': 'Atualizar para desbloquear exportação', 'ru': 'Обновите для разблокировки экспорта', 'id': 'Tingkatkan untuk membuka ekspor'
   },
   
+  // Navigation
+  'nav.help': {
+    'zh-TW': '幫助與支援', 'ja': 'ヘルプ・サポート', 'ko': '도움말 및 지원',
+    'de': 'Hilfe & Support', 'fr': 'Aide & Support', 'es': 'Ayuda y Soporte',
+    'pt': 'Ajuda e Suporte', 'ru': 'Помощь и поддержка', 'id': 'Bantuan & Dukungan'
+  },
+  
   // API Keys - Advanced Filter
   'apiKeys.advancedFilter': {
     'zh-TW': '進階篩選', 'ja': '詳細フィルター', 'ko': '고급 필터',

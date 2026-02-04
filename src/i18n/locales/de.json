@@ -70,7 +70,8 @@
     "logout": "Abmelden",
     "logout_confirm_message": "Möchten Sie sich wirklich abmelden?",
     "overview": "Übersicht",
-    "team": "Team"
+    "team": "Team",
+    "help": "Hilfe & Support"
   },
   "auth": {
     "signIn": "Anmelden",

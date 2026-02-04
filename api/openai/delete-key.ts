@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     );
 
-    const openaiData = await openaiResponse.json();
+    const openaiData = await openaiResponse.json() as { error?: { code?: string; type?: string; message?: string } };
     let openaiDeleted = true;
     let alreadyDeleted = false;
 

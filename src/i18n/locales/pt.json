@@ -70,7 +70,8 @@
     "logout": "Sair",
     "logout_confirm_message": "Tem certeza de que deseja sair?",
     "overview": "Visão geral",
-    "team": "Equipe"
+    "team": "Equipe",
+    "help": "Ajuda e Suporte"
   },
   "auth": {
     "signIn": "Entrar",

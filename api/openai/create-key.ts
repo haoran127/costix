@@ -100,7 +100,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     );
 
-    const openaiData = await openaiResponse.json();
+    const openaiData = await openaiResponse.json() as { 
+      id?: string; 
+      name?: string; 
+      created_at?: number;
+      api_key?: { sensitive_id?: string; id?: string; value?: string; name?: string }; 
+      error?: { message?: string; code?: string; type?: string } 
+    };
 
     // 检查 OpenAI API 错误
     if (!openaiResponse.ok || openaiData.error) {

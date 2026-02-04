@@ -136,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         });
 
-        const balanceData = await balanceResponse.json();
+        const balanceData = await balanceResponse.json() as { ResponseMetadata?: { Error?: { Message?: string } }; Result?: any };
 
         if (balanceData.ResponseMetadata && balanceData.ResponseMetadata.Error) {
           balanceError = balanceData.ResponseMetadata.Error.Message || '余额查询失败';
@@ -207,7 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           body: usageRequestBody,
         });
 
-        const usageData = await usageResponse.json();
+        const usageData = await usageResponse.json() as { ResponseMetadata?: { Error?: { Message?: string } }; Result?: any };
 
         // 调试：打印完整的用量 API 响应
         console.log('[volcengine/sync-data] GetUsage API 响应:', JSON.stringify(usageData, null, 2));
